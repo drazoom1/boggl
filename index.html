@@ -261,6 +261,9 @@
   .memo-cat.c-harness{background:#eef0ff;color:#4a5cf2}
   .memochip.locked{cursor:default;background:var(--panel);border-style:dashed;color:var(--muted)}
   .head-actions{display:flex;gap:8px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end}
+  /* 로그인 버튼 (로그아웃 상태) */
+  .loginbtn{flex-shrink:0;background:var(--black);color:#fff;border:none;font-family:inherit;font-weight:800;font-size:14px;padding:10px 20px;border-radius:999px;cursor:pointer;transition:.15s}
+  .loginbtn:hover{opacity:.88}
   /* 아바타 말풍선 메뉴 */
   .avatar-wrap{position:relative;flex-shrink:0}
   .avatar-menu{position:absolute;top:calc(100% + 12px);right:0;width:232px;background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 14px 36px rgba(0,0,0,.16);padding:16px;z-index:120}
@@ -580,7 +583,8 @@
       <svg viewBox="0 0 24 24"><path d="M5 7.5l-1.4 4.5L5 16.5a2 2 0 0 0 1.4 1.4c1.6.4 5.6.6 5.6.6s4 0 5.6-.6A2 2 0 0 0 19 16.5l1.4-4.5L19 7.5a2 2 0 0 0-1.4-1.4C16 5.7 12 5.5 12 5.5s-4 0-5.6.6A2 2 0 0 0 5 7.5z"/><path d="M10.4 9.8l4 2.2-4 2.2z"/></svg>
       <div class="yt-txt"><b class="yt-label">확인 중</b><span class="yt-sub"></span></div>
     </div>
-    <div class="avatar-wrap">
+    <button class="loginbtn" id="loginBtn">로그인</button>
+    <div class="avatar-wrap" id="avatarWrap" style="display:none">
       <div class="avatar" id="avatar">?</div>
       <div class="avatar-menu" id="avatarMenu" hidden></div>
     </div>
@@ -2728,13 +2732,18 @@ function getSession(){
   return null;
 }
 function renderAvatar(){
-  const av=$("#avatar"); if(!av) return;
+  const av=$("#avatar"), wrap=$("#avatarWrap"), lb=$("#loginBtn"); if(!av) return;
   const s=getSession();
   if(s && s.user){
+    if(lb) lb.style.display="none";
+    if(wrap) wrap.style.display="";
     if(s.user.picture){ av.style.backgroundImage=`url(${s.user.picture})`; av.style.backgroundSize="cover"; av.style.backgroundPosition="center"; av.textContent=""; }
     else { av.style.backgroundImage=""; av.textContent=(s.user.name||"U").slice(0,1); }
-    av.title=(s.user.name||"")+" · 클릭하면 로그아웃";
-  } else { av.style.backgroundImage=""; av.textContent="?"; av.title="로그인이 필요해요"; }
+    av.title=(s.user.name||"")+" · 클릭하면 메뉴";
+  } else {
+    if(lb) lb.style.display="";
+    if(wrap) wrap.style.display="none";
+  }
 }
 function mergeSession(patch){ const s=LS.get("nembi_auth")||{}; LS.set("nembi_auth", Object.assign({}, s, patch)); }
 
@@ -2846,6 +2855,8 @@ if(avatarEl) avatarEl.onclick=(e)=>{
   e.stopPropagation();
   if(avatarMenu.hidden){ renderAvatarMenu(); avatarMenu.hidden=false; } else avatarMenu.hidden=true;
 };
+const loginBtnEl=$("#loginBtn");
+if(loginBtnEl) loginBtnEl.onclick=()=>authGate.classList.add("show");
 document.addEventListener("click",(e)=>{
   if(!avatarMenu.hidden && !avatarMenu.contains(e.target) && e.target!==avatarEl) avatarMenu.hidden=true;
 });
