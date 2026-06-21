@@ -27,7 +27,9 @@
   }
   *{box-sizing:border-box;margin:0;padding:0}
   html{scroll-behavior:smooth}
-  body{font-family:var(--sans);background:var(--bg);color:var(--ink);line-height:1.5;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+  body{font-family:var(--sans);background:var(--bg);color:var(--ink);line-height:1.5;-webkit-font-smoothing:antialiased;overflow-x:hidden;word-break:keep-all;overflow-wrap:break-word}
+  /* 코드·프롬프트·URL은 단어 단위가 아니라 길게 끊기게 (한글 keep-all 예외) */
+  pre,code,.codebody,.sbody,.manual-sec .mbody,.am-user span{word-break:break-word}
   .wrap{max-width:1080px;margin:0 auto;padding:0 28px 70px}
   .page{display:none}
   .page.active{display:block}
@@ -133,6 +135,14 @@
   .rrow.sel .rpill{background:var(--ink);color:#fff;border-color:var(--ink)}
   .rsample{flex-shrink:0;background:none;border:none;color:var(--muted);font-family:inherit;font-weight:600;font-size:12.5px;cursor:pointer;padding:8px 10px;border-radius:8px;text-decoration:underline;text-underline-offset:2px}
   .rsample:hover{color:var(--ink)}
+  @media(max-width:560px){
+    .rrow{flex-wrap:wrap;gap:9px 10px;padding:13px 6px}
+    .rno{order:1;width:16px;font-size:15px}
+    .rtile{order:2;width:42px;height:42px;font-size:18px}
+    .rbody{order:3;flex:1 1 60%}
+    .rsample{order:4;margin-left:auto;padding:8px 8px}
+    .rpill{order:5;padding:9px 15px}
+  }
   .modal.sample-modal{max-width:920px;width:100%;padding:18px}
   .sample-head{display:flex;align-items:center;justify-content:space-between;font-weight:800;font-size:16px;margin-bottom:12px}
   .sample-bar{display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap}
