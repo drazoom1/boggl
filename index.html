@@ -4,6 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>BOGGL · 웹서비스 레시피를 끓이는 곳</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;700&family=Poppins:wght@500;700&family=Montserrat:wght@500;700&family=Playfair+Display:wght@600;700&family=Space+Grotesk:wght@500;700&family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
@@ -466,8 +467,6 @@
 </style>
 </head>
 <body>
-
-<script src="https://accounts.google.com/gsi/client" async></script>
 
 <!-- 로그인 화면 (로그인 필요 기능 클릭 시 진입) -->
 <div class="auth-gate" id="authGate">
@@ -1960,7 +1959,7 @@ function renderPicker(){
     if(m.demo){ mountThumb(card.querySelector(".matthumb"), m.demo); const pv=card.querySelector('[data-act="prev"]'); if(pv) pv.onclick=()=>openPreview(m.title+" — 예시", m.demo); }
     const cb=card.querySelector('[data-act="code"]'); if(cb) cb.onclick=()=>openCode(m);
     const tg=card.querySelector('[data-act="toggle"]'); if(tg) tg.onclick=()=>{ if(state.memos.has(m.id)) state.memos.delete(m.id); else state.memos.add(m.id); renderPicker(); renderMemoPickers(); updateHint(); };
-    const gb=card.querySelector('[data-act="grab"]'); if(gb && !gb.disabled) gb.onclick=()=>{ const nid=uid("m"); memos.unshift(cloneMat(m,nid)); state.memos.add(nid); LS.set("nembi_memos",memos); renderPicker(); renderMemoPickers(); updateHint(); showToast("담았어요!"); };
+    const gb=card.querySelector('[data-act="grab"]'); if(gb && !gb.disabled) gb.onclick=()=>{ const nid=uid("m"); memos.unshift(cloneMat(m,nid)); state.memos.add(nid); saveMemos(); renderPicker(); renderMemoPickers(); updateHint(); showToast("담았어요!"); };
   });
 }
 $("#pickerClose").onclick=()=>pickerModal.classList.remove("open");
@@ -2231,7 +2230,7 @@ function confirmSaveRecipe(){
   const name = $("#saveName").value.trim() || lastRecipe.name || "내 레시피";
   recipes.unshift({id:uid("r"), name, meta:lastRecipe.meta, text:lastRecipe.text, manual:lastRecipe.manual||"", date:today(),
                    type: state.base? state.base.name : "기타", sample: state.base? state.base.sample||"" : ""});
-  LS.set("nembi_recipes", recipes);
+  saveRecipes();
   saveModal.classList.remove("open");
   renderRecipes();
   showToast(`"${name}" 저장됐어요! (백엔드 설명서 포함)`);
@@ -2291,7 +2290,7 @@ function renderRecipes(){
     card.querySelector('[data-act="copy"]').onclick=()=>navigator.clipboard.writeText(rec.text).then(()=>showToast("복사되었어요!"));
     card.querySelector('[data-act="view"]').onclick=()=>openPreview(`${rec.name} — 미리보기`, rec.sample);
     card.querySelector('[data-act="dl"]').onclick=()=>{ const b=new Blob([rec.text],{type:"text/plain"}); const a=document.createElement("a"); a.href=URL.createObjectURL(b); a.download="nembi-recipe.txt"; a.click(); };
-    card.querySelector('[data-act="del"]').onclick=()=>{ if(!confirm("이 레시피를 삭제할까요?"))return; recipes=recipes.filter(x=>x.id!==id); LS.set("nembi_recipes",recipes); renderRecipes(); };
+    card.querySelector('[data-act="del"]').onclick=()=>{ if(!confirm("이 레시피를 삭제할까요?"))return; recipes=recipes.filter(x=>x.id!==id); saveRecipes(); renderRecipes(); };
   });
 }
 
@@ -2422,7 +2421,7 @@ function importShared(s){
   const exists = allBases().some(x=>x.name===b.name);
   if(!exists){ importedBases.push(b); LS.set("nembi_bases", importedBases); renderRankList(); }
   recipes.unshift({id:uid("r"), name:`${b.name} 레시피`, meta:`공유에서 담음 · ${b.name} 베이스`, text:buildBaseRecipe(b), date:today(), type:b.name, sample:b.sample||""});
-  LS.set("nembi_recipes", recipes);
+  saveRecipes();
   renderRecipes();
   showToast(exists?"내 레시피에 담았어요 (이미 베이스에 있어요)":"내 레시피 + 베이스에 담았어요!");
 }
@@ -2466,7 +2465,7 @@ $("#memoSaveBtn").onclick=()=>{
   } else {
     memos.unshift({id:uid("m"), cat:memoCat, type:memoType, title, body, date:today()});
   }
-  LS.set("nembi_memos", memos);
+  saveMemos();
   closeMemoModal(); renderPantry(); renderMemoPickers(); updateHint();
   showToast((memoType==="code"?"코드":"메모")+" 재료가 저장됐어요!");
 };
@@ -2489,7 +2488,7 @@ function renderPantry(){
     if(m.demo){ mountThumb(card.querySelector(".matthumb"), m.demo); const pv=card.querySelector('[data-act="prev"]'); if(pv) pv.onclick=()=>openPreview(m.title+" — 예시", m.demo); }
     const cb=card.querySelector('[data-act="code"]'); if(cb) cb.onclick=()=>openCode(m);
     card.querySelector('[data-act="edit"]').onclick=()=>openMemoModal(m);
-    card.querySelector('[data-act="del"]').onclick=()=>{ if(!confirm("이 메모를 삭제할까요?"))return; memos=memos.filter(x=>x.id!==id); state.memos.delete(id); LS.set("nembi_memos",memos); renderPantry(); renderMemoPickers(); updateHint(); };
+    card.querySelector('[data-act="del"]').onclick=()=>{ if(!confirm("이 메모를 삭제할까요?"))return; memos=memos.filter(x=>x.id!==id); state.memos.delete(id); saveMemos(); renderPantry(); renderMemoPickers(); updateHint(); };
   });
 }
 
@@ -2556,7 +2555,7 @@ function renderPantryShared(){
     if(m.demo){ mountThumb(card.querySelector(".matthumb"), m.demo); const pv=card.querySelector('[data-act="prev"]'); if(pv) pv.onclick=()=>openPreview(m.title+" — 예시", m.demo); }
     const cb=card.querySelector('[data-act="code"]'); if(cb) cb.onclick=()=>openCode(m);
     card.querySelector('[data-act="add"]').onclick=()=>{
-      memos.unshift(cloneMat(m)); LS.set("nembi_memos", memos); renderMemoPickers(); showToast("내 재료에 담았어요!");
+      memos.unshift(cloneMat(m)); saveMemos(); renderMemoPickers(); showToast("내 재료에 담았어요!");
     };
   });
 }
@@ -2709,26 +2708,23 @@ $("#dlBtn").onclick=()=>{ const b=new Blob([$("#recipeText").textContent],{type:
 $("#guideBtn").onclick=()=>{ const g=$("#guideBtn").dataset.guide; if(!g) return; const b=new Blob([g],{type:"text/markdown"}); const a=document.createElement("a"); a.href=URL.createObjectURL(b); a.download="nembi-준비물-가이드.md"; a.click(); };
 $("#resetBtn").onclick=()=>{ state.base=null; state.ui={}; state.feats=new Set(); state.customs=[]; state.ai=null; state.memos=new Set(); location.reload(); };
 
-/* ================= GOOGLE 로그인 (실제 OAuth / Google Identity Services) ================= */
-/* ▼▼▼ 구글 클라우드 콘솔에서 발급한 OAuth 클라이언트 ID를 여기에 붙여넣으세요 ▼▼▼ */
-const GOOGLE_CLIENT_ID = "246109299393-9bu6i8qmjqhnu95m5p6ok3v4kdg2ngj8.apps.googleusercontent.com";
-/* ▲▲▲ 예: 1234567890-abc123def.apps.googleusercontent.com ▲▲▲ */
-const HAS_GOOGLE = /\.apps\.googleusercontent\.com$/.test(GOOGLE_CLIENT_ID) && !GOOGLE_CLIENT_ID.startsWith("PASTE_");
+/* ================= 로그인 + 저장 (Supabase Auth + DB) ================= */
+const SUPABASE_URL = "https://kesgikhoidwgdoaactfk.supabase.co";
+const SUPABASE_KEY = "sb_publishable_NAj5BOQm_eJITGUKTVIobg_2hcgDstC";
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-/* ▼▼▼ 구독/멤버십 확인할 대상 유튜브 채널 ID (UCxxxx... 형식) ▼▼▼ */
+/* 구독 확인할 대상 유튜브 채널 */
 const YOUTUBE_CHANNEL_ID = "UCidyOPC0asenYpq_Mgbfa0w";   // 혼잡스 채널
-/* 멤버십 게이팅을 켤지 (소유자 서버 연동이 있을 때만 true). 기본은 구독으로 게이팅 */
-const MEMBERSHIP_ENABLED = false;
-/* ▲▲▲ */
+const MEMBERSHIP_ENABLED = false;   // 멤버십 게이팅(소유자 서버 연동 시)·기본은 구독 게이팅
 const HAS_YT_CHANNEL = /^UC[\w-]{20,}$/.test(YOUTUBE_CHANNEL_ID);
-const GOOGLE_SCOPE = "openid email profile https://www.googleapis.com/auth/youtube.readonly";
+const YT_SCOPE = "https://www.googleapis.com/auth/youtube.readonly";
+let sbUserId = null;
 
 const authGate=$("#authGate");
-let tokenClient=null;
 
 function getSession(){
   const s=LS.get("nembi_auth");
-  if(s && s.user && s.exp && s.exp > Date.now()) return s;   // 유효(만료 전) 세션만 인정
+  if(s && s.user) return s;   // Supabase가 세션 진실원본, 로컬은 미러
   return null;
 }
 function renderAvatar(){
@@ -2740,12 +2736,43 @@ function renderAvatar(){
     av.title=(s.user.name||"")+" · 클릭하면 로그아웃";
   } else { av.style.backgroundImage=""; av.textContent="?"; av.title="로그인이 필요해요"; }
 }
-function setSession(user, token, expiresInSec){
-  LS.set("nembi_auth", { provider:"google", user, token, exp: Date.now() + (expiresInSec||3600)*1000, at: today() });
-  authGate.classList.remove("show");
-  renderAvatar();
-}
 function mergeSession(patch){ const s=LS.get("nembi_auth")||{}; LS.set("nembi_auth", Object.assign({}, s, patch)); }
+
+/* Supabase 세션 → 로컬 미러(다운스트림 코드 호환) */
+function applySupabaseSession(session){
+  const u=session.user||{}, md=u.user_metadata||{};
+  const prev=LS.get("nembi_auth")||{};
+  LS.set("nembi_auth", { provider:"google",
+    user:{ sub:u.id, name:md.full_name||md.name||u.email, email:u.email, picture:md.avatar_url||md.picture||"" },
+    token: session.provider_token || prev.token || null,   // 유튜브 호출용(로그인 직후에만 새로 들어옴)
+    yt: prev.yt, at: today() });
+  sbUserId=u.id; authGate.classList.remove("show"); renderAvatar();
+}
+/* 클라우드에서 내 레시피·재료 불러오기 */
+async function hydrateCloud(){
+  if(!sbUserId) return;
+  try{
+    const { data, error } = await sb.from('boggl_store').select('recipes,materials').eq('user_id',sbUserId).maybeSingle();
+    if(error){ console.warn("불러오기 실패", error); return; }
+    if(data){
+      if(Array.isArray(data.recipes)){ recipes=data.recipes; saveRecipes(); }
+      if(Array.isArray(data.materials)){ memos=data.materials; saveMemos(); }
+      try{renderRecipes();}catch(e){} try{renderPantry();}catch(e){} try{renderMemoPickers();}catch(e){} try{updateHint();}catch(e){}
+    }
+  }catch(e){ console.warn(e); }
+}
+/* 변경분을 클라우드에 저장(디바운스) */
+let _syncT=null;
+function cloudSync(){
+  if(!sbUserId) return;   // 로그인 안 했으면 로컬에만
+  clearTimeout(_syncT);
+  _syncT=setTimeout(()=>{
+    sb.from('boggl_store').upsert({ user_id:sbUserId, recipes:recipes, materials:memos })
+      .then(({error})=>{ if(error) console.warn("저장 실패", error); });
+  },600);
+}
+function saveRecipes(){ LS.set("nembi_recipes", recipes); cloudSync(); }
+function saveMemos(){ LS.set("nembi_memos", memos); cloudSync(); }
 
 /* ===== 유튜브 구독 / 멤버십 확인 ===== */
 function ytFetch(path, token){
@@ -2795,39 +2822,12 @@ function renderYtStatus(){
   el.querySelector(".yt-sub").textContent = sub;
   el.onclick = ()=>openGate();
 }
-function clearSession(){
-  LS.set("nembi_auth", null);
-  try{ if(window.google && google.accounts && google.accounts.id) google.accounts.id.disableAutoSelect(); }catch(e){}
-  location.reload();
-}
-function ensureTokenClient(){
-  if(tokenClient) return tokenClient;
-  if(!(window.google && google.accounts && google.accounts.oauth2)) return null;
-  tokenClient = google.accounts.oauth2.initTokenClient({
-    client_id: GOOGLE_CLIENT_ID,
-    scope: GOOGLE_SCOPE,
-    callback: async (resp)=>{
-      if(resp && resp.error){ alert("로그인이 취소되었거나 실패했어요."); return; }
-      try{
-        const u = await fetch("https://www.googleapis.com/oauth2/v3/userinfo",
-          { headers:{ Authorization:"Bearer "+resp.access_token } }).then(r=>r.json());
-        setSession({ sub:u.sub, name:u.name, email:u.email, picture:u.picture }, resp.access_token, resp.expires_in);
-        showToast("로그인되었어요!");
-        await checkYouTube(resp.access_token);   // 구독 확인
-        if(typeof premiumLocked==="function" && premiumLocked()) openGate();  // 미구독이면 구독 인증 안내
-      }catch(e){ alert("프로필을 불러오지 못했어요. 다시 시도해주세요."); }
-    }
-  });
-  return tokenClient;
-}
-function startGoogleLogin(){
-  if(!HAS_GOOGLE){
-    alert("구글 로그인 설정이 필요해요.\n\nindex.html 상단의 GOOGLE_CLIENT_ID 값에 구글 클라우드 콘솔에서 발급한 OAuth 클라이언트 ID를 붙여넣어 주세요.\n(승인된 자바스크립트 원본에 이 사이트 주소도 등록해야 해요.)");
-    return;
-  }
-  const tc=ensureTokenClient();
-  if(!tc){ alert("구글 로그인 모듈을 불러오는 중이에요. 잠시 후 다시 눌러주세요."); return; }
-  tc.requestAccessToken();
+async function clearSession(){ try{ await sb.auth.signOut(); }catch(e){} LS.set("nembi_auth",null); sbUserId=null; location.reload(); }
+async function startGoogleLogin(){
+  try{
+    await sb.auth.signInWithOAuth({ provider:'google',
+      options:{ scopes:YT_SCOPE, redirectTo: location.origin+location.pathname } });
+  }catch(e){ alert("로그인을 시작하지 못했어요. 잠시 후 다시 시도해주세요."); }
 }
 authGate.querySelectorAll(".abtn[data-login='google']").forEach(b=> b.onclick=startGoogleLogin);
 
@@ -2850,10 +2850,23 @@ document.addEventListener("click",(e)=>{
   if(!avatarMenu.hidden && !avatarMenu.contains(e.target) && e.target!==avatarEl) avatarMenu.hidden=true;
 });
 
-/* 진입: 로그인 없이도 레시피 화면이 먼저 보임. 세션 있으면 아바타/구독 상태만 갱신 */
+/* 진입: 로그인 없이도 레시피 화면이 먼저 보임 */
 authGate.classList.remove("show");
 renderAvatar();
-(function(){ const s=getSession(); if(s){ if(s.yt) renderYtStatus(); else if(s.token && HAS_YT_CHANNEL) checkYouTube(s.token); } })();
+
+/* Supabase 인증 상태 → 로컬 미러 + 데이터 동기화 + 구독 확인 */
+let _ytPrompted=false;
+sb.auth.onAuthStateChange((event, session)=>{
+  if(session && session.user){
+    applySupabaseSession(session);
+    hydrateCloud();
+    if(session.provider_token){
+      checkYouTube(session.provider_token).then(()=>{ renderYtStatus(); if(!_ytPrompted && premiumLocked()){ _ytPrompted=true; openGate(); } });
+    } else { renderYtStatus(); }
+  } else {
+    LS.set("nembi_auth", null); sbUserId=null; renderAvatar();
+  }
+});
 
 /* 로그인 필요 안내 → 로그인 화면 */
 function requireLogin(){
