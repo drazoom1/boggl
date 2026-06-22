@@ -534,7 +534,7 @@
     <p id="gateMsg" style="color:var(--muted);font-size:14px;line-height:1.55;margin-bottom:20px">이 기능은 채널 구독자만 사용할 수 있어요.</p>
     <div style="display:flex;flex-direction:column;gap:9px">
       <button class="btn primary" id="gateGo" style="justify-content:center">채널 구독하러 가기</button>
-      <button class="btn" id="gateRecheck" style="justify-content:center">구독했어요, 다시 확인</button>
+      <button class="btn" id="gateRecheck" style="justify-content:center">구독 인증하기</button>
       <button class="btn" id="gateClose" style="justify-content:center;border:none">닫기</button>
     </div>
   </div>
@@ -2842,25 +2842,36 @@ function premiumLocked(){
   return !yt.subscribed;                          // 기본: 구독 게이팅
 }
 function renderYtStatus(){
-  const yt=ytStatus(); const el=$("#ytStatus"); if(!el) return;
-  if(!yt || !yt.configured){ el.style.display="none"; return; }
+  const el=$("#ytStatus"); if(!el) return;
+  // 채널 미설정이거나 비로그인 → 칩 숨김
+  if(!HAS_YT_CHANNEL || !getSession()){ el.style.display="none"; return; }
+  const yt=ytStatus()||{};
   el.style.display="flex"; el.style.cursor="pointer";
   const ok = MEMBERSHIP_ENABLED ? !!yt.member : !!yt.subscribed;
   let label, sub;
-  if(yt.error){ label="구독 확인 실패"; sub="눌러서 다시 인증"; }
-  else if(ok){ label = MEMBERSHIP_ENABLED ? "멤버십 인증됨" : "구독 인증됨"; sub="프리미엄 기능 사용 가능"; }
-  else { label = MEMBERSHIP_ENABLED ? "멤버십 미인증" : "구독 미인증"; sub="눌러서 구독 인증하기"; }
+  if(ok){ label = MEMBERSHIP_ENABLED ? "멤버십 인증됨" : "구독 인증됨"; sub="프리미엄 기능 사용 가능"; }
+  else { label = "구독 인증 필요"; sub="눌러서 구독 인증하기"; }
   el.className = "yt-status "+(ok?"ok":"no");
   el.querySelector(".yt-label").textContent = label;
   el.querySelector(".yt-sub").textContent = sub;
-  el.onclick = ()=>openGate();
+  el.onclick = ()=>{ if(ok) showToast("이미 구독 인증됨"); else startYouTubeAuth(); };
 }
 async function clearSession(){ try{ await sb.auth.signOut(); }catch(e){} LS.set("nembi_auth",null); sbUserId=null; location.reload(); }
+/* 로그인: 기본 정보만(민감 권한 X) → '확인 안된 앱' 경고 안 뜸 */
 async function startGoogleLogin(){
   try{
     await sb.auth.signInWithOAuth({ provider:'google',
-      options:{ scopes:YT_SCOPE, redirectTo: location.origin+location.pathname } });
+      options:{ redirectTo: location.origin+location.pathname } });
   }catch(e){ alert("로그인을 시작하지 못했어요. 잠시 후 다시 시도해주세요."); }
+}
+/* 구독 인증: youtube 권한을 이때만 별도 요청 (이 단계에서만 경고가 뜸) */
+async function startYouTubeAuth(){
+  try{
+    if(!getSession()){ $("#loginPrompt").classList.add("open"); return; }
+    sessionStorage.setItem("boggl_yt_pending","1");
+    await sb.auth.signInWithOAuth({ provider:'google',
+      options:{ scopes:YT_SCOPE, redirectTo: location.origin+location.pathname } });
+  }catch(e){ alert("구독 인증을 시작하지 못했어요. 잠시 후 다시 시도해주세요."); }
 }
 authGate.querySelectorAll(".abtn[data-login='google']").forEach(b=> b.onclick=startGoogleLogin);
 
@@ -2890,14 +2901,22 @@ authGate.classList.remove("show");
 renderAvatar();
 
 /* Supabase 인증 상태 → 로컬 미러 + 데이터 동기화 + 구독 확인 */
-let _ytPrompted=false;
 sb.auth.onAuthStateChange((event, session)=>{
   if(session && session.user){
     applySupabaseSession(session);
     hydrateCloud();
-    if(session.provider_token){
-      checkYouTube(session.provider_token).then(()=>{ renderYtStatus(); if(!_ytPrompted && premiumLocked()){ _ytPrompted=true; openGate(); } });
-    } else { renderYtStatus(); }
+    // youtube 권한을 방금 받은 경우(구독 인증 단계)에만 구독 확인
+    const pending = sessionStorage.getItem("boggl_yt_pending");
+    if(pending && session.provider_token){
+      sessionStorage.removeItem("boggl_yt_pending");
+      checkYouTube(session.provider_token).then(()=>{
+        renderYtStatus();
+        if(!premiumLocked()){ $("#gateModal").classList.remove("open"); showToast("구독 인증 완료! 이제 사용할 수 있어요."); }
+        else { openGate(); showToast("아직 구독이 확인되지 않았어요."); }
+      });
+    } else {
+      renderYtStatus();   // 일반 로그인: 캐시된 구독 상태만 표시(없으면 '인증하기' 안내)
+    }
   } else {
     LS.set("nembi_auth", null); sbUserId=null; renderAvatar();
   }
@@ -2924,15 +2943,7 @@ function openGate(){
   $("#gateModal").classList.add("open");
 }
 $("#gateGo").onclick=()=>{ window.open("https://www.youtube.com/channel/"+YOUTUBE_CHANNEL_ID+"?sub_confirmation=1","_blank"); };
-$("#gateRecheck").onclick=async ()=>{
-  const s=getSession();
-  if(!s || !s.token){ $("#gateModal").classList.remove("open"); startGoogleLogin(); return; }
-  $("#gateRecheck").textContent="확인 중…";
-  await checkYouTube(s.token);
-  $("#gateRecheck").textContent="구독했어요, 다시 확인";
-  if(!premiumLocked()){ $("#gateModal").classList.remove("open"); showToast("확인됐어요! 이제 사용할 수 있어요."); }
-  else showToast("아직 구독이 확인되지 않았어요.");
-};
+$("#gateRecheck").onclick=()=>{ startYouTubeAuth(); };   // youtube 권한 받아 구독 확인
 $("#gateClose").onclick=()=>$("#gateModal").classList.remove("open");
 $("#gateModal").onclick=(e)=>{ if(e.target===$("#gateModal")) $("#gateModal").classList.remove("open"); };
 
