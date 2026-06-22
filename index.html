@@ -457,7 +457,11 @@
     transition:.25s;pointer-events:none;z-index:99;box-shadow:0 12px 30px rgba(0,0,0,.25)}
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
-  footer{text-align:center;color:var(--muted);font-size:13px;padding:40px 0 10px;font-family:var(--serif);font-style:italic}
+  footer{text-align:center;color:var(--muted);font-size:13px;padding:40px 0 24px;font-family:var(--serif);font-style:italic}
+  .foot-links{margin-top:10px;font-family:var(--sans);font-style:normal;font-size:12.5px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+  .foot-links a{color:var(--muted);text-decoration:none;font-weight:600}
+  .foot-links a:hover{color:var(--ink);text-decoration:underline}
+  .foot-links span{opacity:.5}
 
   @media(max-width:760px){
     .wrap,.bar-in{padding-left:14px;padding-right:14px}
@@ -732,7 +736,16 @@
     </section>
   </div>
 
-  <footer>Bboggl — 웹서비스 레시피를 끓이는 곳.</footer>
+  <footer>
+    <div>Bboggl — 웹서비스 레시피를 끓이는 곳.</div>
+    <div class="foot-links">
+      <a href="privacy.html" target="_blank">개인정보처리방침</a>
+      <span>·</span>
+      <a href="terms.html" target="_blank">이용약관</a>
+      <span>·</span>
+      <a href="mailto:honjobs@naver.com">문의 honjobs@naver.com</a>
+    </div>
+  </footer>
 </div>
 
 <!-- MEMO MODAL -->
