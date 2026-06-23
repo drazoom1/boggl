@@ -484,6 +484,16 @@
   .foot-links a{color:var(--muted);text-decoration:none;font-weight:600}
   .foot-links a:hover{color:var(--ink);text-decoration:underline}
   .foot-links span{opacity:.5}
+  /* 관리자 */
+  .adm-row{display:flex;align-items:center;gap:12px;padding:13px 6px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+  .adm-row:last-child{border-bottom:none}
+  .adm-row .ainfo{flex:1;min-width:150px}
+  .adm-row .ainfo b{font-size:14.5px;display:block}
+  .adm-row .ainfo span{display:block;font-size:12.5px;color:var(--muted)}
+  .adm-badge{font-size:11px;font-weight:800;padding:3px 9px;border-radius:999px;background:#fff7e0;color:#9a6a12}
+  .adm-pts{display:flex;align-items:center;gap:6px;flex-shrink:0}
+  .adm-pts input{width:84px;padding:8px 10px;border:1px solid var(--line);border-radius:9px;font-family:inherit;font-size:13px;outline:none}
+  .adm-empty{padding:36px;text-align:center;color:var(--muted);font-size:14px}
 
   @media(max-width:760px){
     .wrap,.bar-in{padding-left:14px;padding-right:14px}
@@ -627,6 +637,7 @@
       <span class="tab active" data-page="build">레시피 만들기</span>
       <span class="tab" data-page="recipes">레시피 보관함</span>
       <span class="tab" data-page="pantry">재료 보관함</span>
+      <span class="tab" data-page="admin" id="adminTab" style="display:none">🔧 관리자</span>
     </nav>
     <div class="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg><input type="text" placeholder="레시피 검색" /></div>
     <div class="yt-status" id="ytStatus" style="display:none">
@@ -773,6 +784,24 @@
       <div class="vtoggle libtoggle" id="panTabs"><button data-tab="mine" class="on">내 보관함</button><button data-tab="shared">공유 보관함</button></div>
       <div id="pantryMine"><div class="filterbar" id="panMineFilterBar"></div><div id="pantryList"></div></div>
       <div id="pantryShared" style="display:none"><div class="filterbar" id="panSharedFilterBar"></div><div id="pantrySharedList"></div></div>
+    </section>
+  </div>
+
+  <!-- ============ PAGE: ADMIN ============ -->
+  <div class="page" id="page-admin">
+    <section class="sec">
+      <div class="sec-head">
+        <span class="sec-title">🔧 관리자 <b>페이지</b></span>
+        <span class="sec-note">혼잡스 채널 관리자 전용 — 공유 검수 · 가입자 관리</span>
+      </div>
+      <div class="vtoggle libtoggle" id="admTabs"><button data-tab="review" class="on">공유 검수</button><button data-tab="users">가입자 관리</button></div>
+
+      <div id="admReview">
+        <div class="panel"><div id="admReviewList"></div></div>
+      </div>
+      <div id="admUsers" style="display:none">
+        <div class="panel"><div id="admUsersList"></div></div>
+      </div>
     </section>
   </div>
 
@@ -2315,15 +2344,15 @@ $("#saveName").addEventListener("keydown",e=>{ if(e.key==="Enter") confirmSaveRe
 async function shareRecipe(rec){
   if(typeof requireLogin==="function" && !requireLogin()) return;
   if(!sbUserId){ alert("로그인 후 공유할 수 있어요."); return; }
-  if(!confirm("이 레시피를 ‘공유 보관함’에 올릴까요?\n누구나 담아서 사용할 수 있게 공개됩니다.")) return;
+  if(!confirm("이 레시피를 공유 요청할까요?\n관리자 검수 후 공유 보관함에 등록돼 누구나 담아갈 수 있어요.")) return;
   const s=getSession();
   const author = nickname || (s && s.user && (s.user.name || s.user.email)) || "사용자";
   const payload = { id: "sh_"+(rec.id||uid("")), user_id: sbUserId, author,
     data: { name:rec.name, meta:rec.meta||"", text:rec.text, manual:rec.manual||"", date:rec.date||today(), type:rec.type||"", sample:rec.sample||"" } };
   try{
     const { error } = await sb.from('boggl_shared').upsert(payload);
-    if(error){ console.warn("공유 실패", error); alert("공유에 실패했어요. 잠시 후 다시 시도해주세요."); return; }
-    showToast("공유 보관함에 올렸어요! 누구나 담아갈 수 있어요 🎉");
+    if(error){ console.warn("공유 실패", error); alert("공유 요청에 실패했어요. 잠시 후 다시 시도해주세요."); return; }
+    showToast("공유 요청 완료! 관리자 검수 후 등록돼요 ✅");
   }catch(e){ console.warn(e); alert("공유에 실패했어요."); }
 }
 /* 공유 레시피를 내 보관함으로 담기 */
@@ -2501,7 +2530,7 @@ async function renderShared(){
   // 사용자들이 올린 공유 레시피 불러오기
   let community=[];
   if(showComm){
-    try{ const { data, error } = await sb.from('boggl_shared').select('id,author,user_id,data').order('created_at',{ascending:false}); if(!error) community=data||[]; else console.warn(error); }
+    try{ const { data, error } = await sb.from('boggl_shared').select('id,author,user_id,data').eq('status','approved').order('created_at',{ascending:false}); if(!error) community=data||[]; else console.warn(error); }
     catch(e){ console.warn(e); }
   }
   let html="";
@@ -2774,9 +2803,67 @@ function switchPage(name){
   if(name==="recipes"){ const on=$("#recTabs").querySelector(".on").dataset.tab; on==="mine"?renderRecipes():renderShared(); }
   if(name==="pantry"){ const on=$("#panTabs").querySelector(".on").dataset.tab; on==="mine"?renderPantry():renderPantryShared(); }
   if(name==="build") renderMemoPickers();
+  if(name==="admin"){ if(!isAdmin()){ switchPage("build"); return; } renderAdmin(); }
   window.scrollTo(0,0);
 }
 document.querySelectorAll(".tab[data-page],.logo[data-page]").forEach(t=>t.onclick=()=>switchPage(t.dataset.page));
+
+/* ================= 관리자 ================= */
+function renderAdmin(){
+  if(!isAdmin()) return;
+  const on=$("#admTabs").querySelector(".on").dataset.tab;
+  $("#admReview").style.display = on==="review" ? "" : "none";
+  $("#admUsers").style.display  = on==="users"  ? "" : "none";
+  if(on==="review") renderAdmReview(); else renderAdmUsers();
+}
+$("#admTabs").querySelectorAll("button").forEach(b=>b.onclick=()=>{
+  $("#admTabs").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b));
+  renderAdmin();
+});
+async function renderAdmReview(){
+  const el=$("#admReviewList"); el.innerHTML=`<div class="adm-empty">불러오는 중…</div>`;
+  let rows=[];
+  try{ const {data,error}=await sb.from('boggl_shared').select('id,author,user_id,data,status,created_at').eq('status','pending').order('created_at',{ascending:false}); if(error)console.warn(error); else rows=data||[]; }catch(e){ console.warn(e); }
+  if(!rows.length){ el.innerHTML=`<div class="adm-empty">검수 대기 중인 공유 요청이 없어요.</div>`; return; }
+  el.innerHTML = rows.map(r=>{ const d=r.data||{}; return `<div class="adm-row" data-id="${r.id}">
+    <div class="ainfo"><b>${escapeHtml(d.name||"레시피")}</b><span>요청자: ${escapeHtml(r.author||"사용자")} · ${escapeHtml(d.meta||d.type||"")}</span></div>
+    <div style="display:flex;gap:6px;flex-shrink:0">
+      ${iconBtn("","recipe","보기",'data-act="view"')}
+      ${iconBtn("primary","add","등록",'data-act="approve"')}
+      ${iconBtn("danger","trash","거절",'data-act="reject"')}
+    </div></div>`; }).join("");
+  el.querySelectorAll(".adm-row").forEach(row=>{
+    const r=rows.find(x=>x.id===row.dataset.id), d=r.data||{};
+    row.querySelector('[data-act="view"]').onclick=()=>openRecipeText(`${d.name||"레시피"} — 전체`, d.text||"");
+    row.querySelector('[data-act="approve"]').onclick=async ()=>{ const {error}=await sb.from('boggl_shared').update({status:'approved'}).eq('id',r.id); if(error){console.warn(error);alert("승인 실패 (관리자 RLS 확인)");return;} showToast("등록(승인)했어요!"); renderAdmReview(); };
+    row.querySelector('[data-act="reject"]').onclick=async ()=>{ if(!confirm("이 공유 요청을 거절(삭제)할까요?"))return; const {error}=await sb.from('boggl_shared').delete().eq('id',r.id); if(error){console.warn(error);alert("거절 실패");return;} showToast("거절했어요."); renderAdmReview(); };
+  });
+}
+async function renderAdmUsers(){
+  const el=$("#admUsersList"); el.innerHTML=`<div class="adm-empty">불러오는 중…</div>`;
+  let rows=[];
+  try{ const {data,error}=await sb.from('boggl_store').select('user_id,nickname,email,points').order('points',{ascending:false}); if(error)console.warn(error); else rows=data||[]; }catch(e){ console.warn(e); }
+  if(!rows.length){ el.innerHTML=`<div class="adm-empty">가입자가 없어요. (또는 관리자 RLS 설정이 필요해요)</div>`; return; }
+  el.innerHTML = `<div style="padding:8px 6px 12px;color:var(--muted);font-size:13px">총 <b style="color:var(--ink)">${rows.length}</b>명</div>` + rows.map(u=>`<div class="adm-row" data-uid="${u.user_id}">
+      <div class="ainfo"><b>${escapeHtml(u.nickname||"(닉네임 없음)")}</b><span>${escapeHtml(u.email||u.user_id)}</span></div>
+      <span class="adm-badge">${(u.points||0).toLocaleString()} P</span>
+      <div class="adm-pts">
+        <input type="number" placeholder="±지급" data-amt />
+        ${iconBtn("primary","add","지급",'data-act="grant"')}
+      </div></div>`).join("");
+  el.querySelectorAll(".adm-row").forEach(row=>{
+    const u=rows.find(x=>x.user_id===row.dataset.uid);
+    row.querySelector('[data-act="grant"]').onclick=async ()=>{
+      const amt=parseInt(row.querySelector('[data-amt]').value,10);
+      if(!amt){ alert("지급(또는 차감)할 포인트를 입력하세요. 예: 500, -100"); return; }
+      const next=Math.max(0,(u.points||0)+amt);
+      const {error}=await sb.from('boggl_store').update({points:next}).eq('user_id',u.user_id);
+      if(error){ console.warn(error); alert("포인트 지급 실패 (관리자 RLS 확인)"); return; }
+      showToast(`${u.nickname||"사용자"}님에게 ${amt>0?"+":""}${amt}P`);
+      renderAdmUsers();
+    };
+  });
+}
 
 /* ================= DRAWER ================= */
 const drawer=$("#drawer"), backdrop=$("#backdrop"), potFab=$("#potFab");
@@ -2862,6 +2949,12 @@ const HAS_YT_CHANNEL = /^UC[\w-]{20,}$/.test(YOUTUBE_CHANNEL_ID);
 const YT_SCOPE = "https://www.googleapis.com/auth/youtube.readonly";
 let sbUserId = null;
 
+/* ▼▼▼ 관리자(혼잡스 채널 소유자) 구글 이메일 — 여기에 본인 관리자 이메일 입력 ▼▼▼ */
+const ADMIN_EMAIL = "PASTE_ADMIN_EMAIL@gmail.com";
+/* ▲▲▲ 이 계정으로 로그인하면 관리자 페이지가 보입니다 (Supabase RLS도 같은 이메일로 설정) ▲▲▲ */
+function isAdmin(){ const s=getSession(); return !!(s && s.user && s.user.email && ADMIN_EMAIL && s.user.email.toLowerCase()===ADMIN_EMAIL.toLowerCase()); }
+function updateAdminTab(){ const t=$("#adminTab"); if(t) t.style.display = isAdmin() ? "" : "none"; }
+
 const authGate=$("#authGate");
 
 function getSession(){
@@ -2883,6 +2976,7 @@ function renderAvatar(){
     if(wrap) wrap.style.display="none";
   }
   if(typeof renderPoints==="function") renderPoints();
+  if(typeof updateAdminTab==="function") updateAdminTab();
 }
 function mergeSession(patch){ const s=LS.get("nembi_auth")||{}; LS.set("nembi_auth", Object.assign({}, s, patch)); }
 
@@ -2920,7 +3014,8 @@ function cloudSync(){
   if(!sbUserId) return;   // 로그인 안 했으면 로컬에만
   clearTimeout(_syncT);
   _syncT=setTimeout(()=>{
-    sb.from('boggl_store').upsert({ user_id:sbUserId, recipes:recipes, materials:memos, points:points, sub_bonus:subBonus, nickname:nickname })
+    const em=(getSession()&&getSession().user&&getSession().user.email)||null;
+    sb.from('boggl_store').upsert({ user_id:sbUserId, recipes:recipes, materials:memos, points:points, sub_bonus:subBonus, nickname:nickname, email:em })
       .then(({error})=>{ if(error) console.warn("저장 실패", error); });
   },600);
 }
