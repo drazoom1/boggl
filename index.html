@@ -2950,7 +2950,7 @@ const YT_SCOPE = "https://www.googleapis.com/auth/youtube.readonly";
 let sbUserId = null;
 
 /* ▼▼▼ 관리자(혼잡스 채널 소유자) 구글 이메일 — 여기에 본인 관리자 이메일 입력 ▼▼▼ */
-const ADMIN_EMAIL = "PASTE_ADMIN_EMAIL@gmail.com";
+const ADMIN_EMAIL = "drazoom@naver.com";
 /* ▲▲▲ 이 계정으로 로그인하면 관리자 페이지가 보입니다 (Supabase RLS도 같은 이메일로 설정) ▲▲▲ */
 function isAdmin(){ const s=getSession(); return !!(s && s.user && s.user.email && ADMIN_EMAIL && s.user.email.toLowerCase()===ADMIN_EMAIL.toLowerCase()); }
 function updateAdminTab(){ const t=$("#adminTab"); if(t) t.style.display = isAdmin() ? "" : "none"; }
@@ -3025,7 +3025,7 @@ function saveMemos(){ LS.set("nembi_memos", memos); cloudSync(); }
 /* ===== 포인트 ===== */
 function renderPoints(){
   const pill=$("#pointsPill"); if(!pill) return;
-  if(getSession()){ pill.style.display="flex"; $("#pointsVal").textContent = points.toLocaleString(); }
+  if(getSession()){ pill.style.display="flex"; $("#pointsVal").textContent = isAdmin() ? "∞" : points.toLocaleString(); pill.classList.toggle("unlimited", isAdmin()); }
   else pill.style.display="none";
 }
 function animateCount(from,to){
@@ -3047,6 +3047,7 @@ function pointFx(delta){
   pill.classList.remove("bump"); void pill.offsetWidth; pill.classList.add("bump");
 }
 function changePoints(delta){
+  if(isAdmin()){ renderPoints(); return; }   // 관리자: 포인트 무한, 차감/변동 없음
   const from=points;
   points=Math.max(0, points+delta);
   LS.set("nembi_points", points);
@@ -3113,6 +3114,7 @@ async function checkYouTube(token){
 function ytStatus(){ const s=getSession(); return s && s.yt ? s.yt : null; }
 /* 프리미엄(특정 기능) 잠금 여부 — 채널 미설정이면 잠그지 않음 */
 function premiumLocked(){
+  if(isAdmin()) return false;              // 관리자는 구독 없이 무한 사용
   if(!HAS_YT_CHANNEL) return false;
   const yt=ytStatus();
   if(!yt) return true;
