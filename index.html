@@ -272,6 +272,18 @@
   .memo-cat.c-harness{background:#eef0ff;color:#4a5cf2}
   .memochip.locked{cursor:default;background:var(--panel);border-style:dashed;color:var(--muted)}
   .head-actions{display:flex;gap:8px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end}
+  /* 포인트 표시 */
+  .points-pill{position:relative;display:flex;align-items:center;gap:5px;flex-shrink:0;background:#fff7e0;border:1px solid #f0e0b0;border-radius:999px;padding:7px 13px 7px 10px;font-weight:800;font-size:14px;color:#9a6a12}
+  .points-pill .coin{width:18px;height:18px;fill:none;stroke:#e0a92a;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+  .points-pill b{font-variant-numeric:tabular-nums;letter-spacing:.2px}
+  .points-pill .pu{font-size:11px;opacity:.7;margin-left:-1px}
+  .points-pill.bump{animation:ptBump .4s ease}
+  @keyframes ptBump{0%,100%{transform:scale(1)}40%{transform:scale(1.14)}}
+  .point-fx{position:absolute;right:8px;top:-6px;font-size:13px;font-weight:900;pointer-events:none;opacity:0}
+  .point-fx.minus{color:#e0532b}
+  .point-fx.plus{color:#1a9e4b}
+  .point-fx.run{animation:ptFx 1s ease forwards}
+  @keyframes ptFx{0%{opacity:0;transform:translateY(2px)}15%{opacity:1}100%{opacity:0;transform:translateY(-22px)}}
   /* 로그인 버튼 (로그아웃 상태) */
   .loginbtn{flex-shrink:0;background:var(--black);color:#fff;border:none;font-family:inherit;font-weight:800;font-size:14px;padding:10px 20px;border-radius:999px;cursor:pointer;transition:.15s}
   .loginbtn:hover{opacity:.88}
@@ -598,6 +610,11 @@
       <svg viewBox="0 0 24 24"><path d="M5 7.5l-1.4 4.5L5 16.5a2 2 0 0 0 1.4 1.4c1.6.4 5.6.6 5.6.6s4 0 5.6-.6A2 2 0 0 0 19 16.5l1.4-4.5L19 7.5a2 2 0 0 0-1.4-1.4C16 5.7 12 5.5 12 5.5s-4 0-5.6.6A2 2 0 0 0 5 7.5z"/><path d="M10.4 9.8l4 2.2-4 2.2z"/></svg>
       <div class="yt-txt"><b class="yt-label">확인 중</b><span class="yt-sub"></span></div>
     </div>
+    <div class="points-pill" id="pointsPill" style="display:none" title="내 포인트">
+      <svg class="coin" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M10 8.5h3a2 2 0 0 1 0 4h-3v3M10 8.5v8"/></svg>
+      <b id="pointsVal">0</b><span class="pu">P</span>
+      <span class="point-fx" id="pointFx"></span>
+    </div>
     <button class="loginbtn" id="loginBtn">로그인</button>
     <div class="avatar-wrap" id="avatarWrap" style="display:none">
       <div class="avatar" id="avatar">?</div>
@@ -837,6 +854,8 @@ const LS = {
 };
 let memos       = LS.get("nembi_memos", []);
 let recipes     = LS.get("nembi_recipes", []);
+let points      = LS.get("nembi_points", 1000);   // 가입 기본 1000
+let subBonus    = LS.get("nembi_subbonus", false); // 구독 보너스(3000) 지급 여부
 let submissions = LS.get("nembi_submissions", []);   // 검수 요청한 레시피
 function isHTMLCode(c){ return /<(!doctype|html|body|div|section|header|main|style)\b/i.test(c||""); }
 function previewDoc(s){
@@ -2218,6 +2237,7 @@ function generate(){
   if(cooking) return;
   cooking=true;
   toggleDrawer(false);
+  if(typeof deductPoints==="function") deductPoints(80);   // 레시피 1개 = 80P (실시간 차감 애니메이션)
   const ov=$("#cookOverlay");
   ov.classList.remove("show"); void ov.offsetWidth; ov.classList.add("show");  // 애니메이션 재시작
   setTimeout(()=>{ buildAndShowRecipe(); ov.classList.remove("show"); cooking=false; }, 4400);
@@ -2768,6 +2788,7 @@ function renderAvatar(){
     if(lb) lb.style.display="";
     if(wrap) wrap.style.display="none";
   }
+  if(typeof renderPoints==="function") renderPoints();
 }
 function mergeSession(patch){ const s=LS.get("nembi_auth")||{}; LS.set("nembi_auth", Object.assign({}, s, patch)); }
 
@@ -2785,13 +2806,16 @@ function applySupabaseSession(session){
 async function hydrateCloud(){
   if(!sbUserId) return;
   try{
-    const { data, error } = await sb.from('boggl_store').select('recipes,materials').eq('user_id',sbUserId).maybeSingle();
+    const { data, error } = await sb.from('boggl_store').select('recipes,materials,points,sub_bonus').eq('user_id',sbUserId).maybeSingle();
     if(error){ console.warn("불러오기 실패", error); return; }
     if(data){
-      if(Array.isArray(data.recipes)){ recipes=data.recipes; saveRecipes(); }
-      if(Array.isArray(data.materials)){ memos=data.materials; saveMemos(); }
+      if(Array.isArray(data.recipes)){ recipes=data.recipes; LS.set("nembi_recipes",recipes); }
+      if(Array.isArray(data.materials)){ memos=data.materials; LS.set("nembi_memos",memos); }
+      if(typeof data.points==="number"){ points=data.points; LS.set("nembi_points",points); }
+      if(typeof data.sub_bonus==="boolean"){ subBonus=data.sub_bonus; LS.set("nembi_subbonus",subBonus); }
+      renderPoints();
       try{renderRecipes();}catch(e){} try{renderPantry();}catch(e){} try{renderMemoPickers();}catch(e){} try{updateHint();}catch(e){}
-    }
+    } else { renderPoints(); }   // 신규 사용자: 기본 1000 표시
   }catch(e){ console.warn(e); }
 }
 /* 변경분을 클라우드에 저장(디바운스) */
@@ -2800,12 +2824,48 @@ function cloudSync(){
   if(!sbUserId) return;   // 로그인 안 했으면 로컬에만
   clearTimeout(_syncT);
   _syncT=setTimeout(()=>{
-    sb.from('boggl_store').upsert({ user_id:sbUserId, recipes:recipes, materials:memos })
+    sb.from('boggl_store').upsert({ user_id:sbUserId, recipes:recipes, materials:memos, points:points, sub_bonus:subBonus })
       .then(({error})=>{ if(error) console.warn("저장 실패", error); });
   },600);
 }
 function saveRecipes(){ LS.set("nembi_recipes", recipes); cloudSync(); }
 function saveMemos(){ LS.set("nembi_memos", memos); cloudSync(); }
+
+/* ===== 포인트 ===== */
+function renderPoints(){
+  const pill=$("#pointsPill"); if(!pill) return;
+  if(getSession()){ pill.style.display="flex"; $("#pointsVal").textContent = points.toLocaleString(); }
+  else pill.style.display="none";
+}
+function animateCount(from,to){
+  const el=$("#pointsVal"); if(!el) return;
+  const dur=800, t0=performance.now();
+  function step(now){
+    const p=Math.min(1,(now-t0)/dur);
+    const e=1-Math.pow(1-p,3);          // easeOutCubic
+    el.textContent = Math.round(from+(to-from)*e).toLocaleString();
+    if(p<1) requestAnimationFrame(step); else el.textContent = to.toLocaleString();
+  }
+  requestAnimationFrame(step);
+}
+function pointFx(delta){
+  const pill=$("#pointsPill"), fx=$("#pointFx"); if(!pill||!fx) return;
+  fx.textContent = (delta>0?"+":"") + delta.toLocaleString();
+  fx.className = "point-fx " + (delta>0?"plus":"minus");
+  void fx.offsetWidth; fx.classList.add("run");
+  pill.classList.remove("bump"); void pill.offsetWidth; pill.classList.add("bump");
+}
+function changePoints(delta){
+  const from=points;
+  points=Math.max(0, points+delta);
+  LS.set("nembi_points", points);
+  renderPoints();          // 우선 표시(로그아웃 등 대비)
+  animateCount(from, points);
+  pointFx(delta);
+  cloudSync();
+}
+function deductPoints(n){ changePoints(-Math.abs(n)); }
+function addPoints(n){ changePoints(Math.abs(n)); }
 
 /* ===== 유튜브 구독 / 멤버십 확인 ===== */
 function ytFetch(path, token){
@@ -2911,7 +2971,12 @@ sb.auth.onAuthStateChange((event, session)=>{
       sessionStorage.removeItem("boggl_yt_pending");
       checkYouTube(session.provider_token).then(()=>{
         renderYtStatus();
-        if(!premiumLocked()){ $("#gateModal").classList.remove("open"); showToast("구독 인증 완료! 이제 사용할 수 있어요."); }
+        const verified = MEMBERSHIP_ENABLED ? !!(ytStatus()||{}).member : !!(ytStatus()||{}).subscribed;
+        if(verified){
+          $("#gateModal").classList.remove("open");
+          if(!subBonus){ subBonus=true; LS.set("nembi_subbonus",true); showToast("구독 인증 완료! 보너스 3,000P 지급 🎉"); addPoints(3000); }
+          else showToast("구독 인증 완료! 이제 사용할 수 있어요.");
+        }
         else { openGate(); showToast("아직 구독이 확인되지 않았어요."); }
       });
     } else {
