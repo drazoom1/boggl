@@ -548,6 +548,19 @@
   </div>
 </div>
 
+<!-- 닉네임 설정/수정 모달 -->
+<div class="modal-back" id="nickModal">
+  <div class="modal" style="max-width:380px">
+    <div class="modal-title" id="nickTitle">닉네임 설정</div>
+    <p id="nickDesc" style="color:var(--muted);font-size:13.5px;line-height:1.55;margin:6px 0 16px">Bboggl에서 사용할 닉네임을 정해주세요. 나중에 마이페이지에서 바꿀 수 있어요.</p>
+    <div class="modal-field"><input type="text" id="nickInput" maxlength="20" placeholder="닉네임 (최대 20자)" /></div>
+    <div class="modal-actions">
+      <button class="btn" id="nickCancel">취소</button>
+      <button class="btn primary" id="nickSave">저장</button>
+    </div>
+  </div>
+</div>
+
 <!-- 프리미엄(구독/멤버십) 게이트 모달 -->
 <div class="modal-back" id="gateModal">
   <div class="modal" style="max-width:400px;text-align:center">
@@ -866,6 +879,7 @@ let memos       = LS.get("nembi_memos", []);
 let recipes     = LS.get("nembi_recipes", []);
 let points      = LS.get("nembi_points", 1000);   // 가입 기본 1000
 let subBonus    = LS.get("nembi_subbonus", false); // 구독 보너스(3000) 지급 여부
+let nickname    = LS.get("nembi_nick", "");        // 사용자 닉네임
 let submissions = LS.get("nembi_submissions", []);   // 검수 요청한 레시피
 function isHTMLCode(c){ return /<(!doctype|html|body|div|section|header|main|style)\b/i.test(c||""); }
 function previewDoc(s){
@@ -2303,7 +2317,7 @@ async function shareRecipe(rec){
   if(!sbUserId){ alert("로그인 후 공유할 수 있어요."); return; }
   if(!confirm("이 레시피를 ‘공유 보관함’에 올릴까요?\n누구나 담아서 사용할 수 있게 공개됩니다.")) return;
   const s=getSession();
-  const author = (s && s.user && (s.user.name || s.user.email)) || "사용자";
+  const author = nickname || (s && s.user && (s.user.name || s.user.email)) || "사용자";
   const payload = { id: "sh_"+(rec.id||uid("")), user_id: sbUserId, author,
     data: { name:rec.name, meta:rec.meta||"", text:rec.text, manual:rec.manual||"", date:rec.date||today(), type:rec.type||"", sample:rec.sample||"" } };
   try{
@@ -2886,16 +2900,18 @@ function applySupabaseSession(session){
 async function hydrateCloud(){
   if(!sbUserId) return;
   try{
-    const { data, error } = await sb.from('boggl_store').select('recipes,materials,points,sub_bonus').eq('user_id',sbUserId).maybeSingle();
-    if(error){ console.warn("불러오기 실패", error); return; }
+    const { data, error } = await sb.from('boggl_store').select('recipes,materials,points,sub_bonus,nickname').eq('user_id',sbUserId).maybeSingle();
+    if(error){ console.warn("불러오기 실패", error); maybePromptNickname(); return; }
     if(data){
       if(Array.isArray(data.recipes)){ recipes=data.recipes; LS.set("nembi_recipes",recipes); }
       if(Array.isArray(data.materials)){ memos=data.materials; LS.set("nembi_memos",memos); }
       if(typeof data.points==="number"){ points=data.points; LS.set("nembi_points",points); }
       if(typeof data.sub_bonus==="boolean"){ subBonus=data.sub_bonus; LS.set("nembi_subbonus",subBonus); }
+      if(typeof data.nickname==="string"){ nickname=data.nickname; LS.set("nembi_nick",nickname); }
       renderPoints();
       try{renderRecipes();}catch(e){} try{renderPantry();}catch(e){} try{renderMemoPickers();}catch(e){} try{updateHint();}catch(e){}
     } else { renderPoints(); }   // 신규 사용자: 기본 1000 표시
+    maybePromptNickname();   // 닉네임 없으면 최초 설정 창
   }catch(e){ console.warn(e); }
 }
 /* 변경분을 클라우드에 저장(디바운스) */
@@ -2904,7 +2920,7 @@ function cloudSync(){
   if(!sbUserId) return;   // 로그인 안 했으면 로컬에만
   clearTimeout(_syncT);
   _syncT=setTimeout(()=>{
-    sb.from('boggl_store').upsert({ user_id:sbUserId, recipes:recipes, materials:memos, points:points, sub_bonus:subBonus })
+    sb.from('boggl_store').upsert({ user_id:sbUserId, recipes:recipes, materials:memos, points:points, sub_bonus:subBonus, nickname:nickname })
       .then(({error})=>{ if(error) console.warn("저장 실패", error); });
   },600);
 }
@@ -2946,6 +2962,33 @@ function changePoints(delta){
 }
 function deductPoints(n){ changePoints(-Math.abs(n)); }
 function addPoints(n){ changePoints(Math.abs(n)); }
+
+/* ===== 닉네임 ===== */
+let nickFirst=false;
+function maybePromptNickname(){ if(getSession() && !nickname) openNicknameModal(true); }
+function openNicknameModal(first){
+  const s=getSession(); if(!s) return;
+  nickFirst=!!first;
+  $("#nickTitle").textContent = first ? "닉네임을 정해주세요 🎉" : "닉네임 수정";
+  $("#nickDesc").style.display = first ? "" : "none";
+  $("#nickInput").value = nickname || s.user.name || "";
+  $("#nickCancel").style.display = first ? "none" : "";
+  $("#nickModal").classList.add("open");
+  setTimeout(()=>{ const i=$("#nickInput"); i.focus(); i.select(); },50);
+}
+function saveNickname(){
+  const v=$("#nickInput").value.trim();
+  if(!v){ alert("닉네임을 입력해주세요."); return; }
+  nickname=v; LS.set("nembi_nick", nickname);
+  cloudSync();
+  $("#nickModal").classList.remove("open");
+  renderAvatarMenu();
+  showToast("닉네임이 저장됐어요!");
+}
+$("#nickSave").onclick=saveNickname;
+$("#nickCancel").onclick=()=>$("#nickModal").classList.remove("open");
+$("#nickModal").onclick=(e)=>{ if(e.target===$("#nickModal") && !nickFirst) $("#nickModal").classList.remove("open"); };
+$("#nickInput").addEventListener("keydown",e=>{ if(e.key==="Enter") saveNickname(); });
 
 /* ===== 유튜브 구독 / 멤버십 확인 ===== */
 function ytFetch(path, token){
@@ -3019,7 +3062,11 @@ const avatarEl=$("#avatar"), avatarMenu=$("#avatarMenu");
 function renderAvatarMenu(){
   const s=getSession();
   if(s && s.user){
-    avatarMenu.innerHTML = `<div class="am-user"><b>${s.user.name||"사용자"}</b><span>${s.user.email||""}</span></div><button class="btn am-btn" id="amLogout">로그아웃</button>`;
+    const display = nickname || s.user.name || "사용자";
+    avatarMenu.innerHTML = `<div class="am-user"><b>${escapeHtml(display)}</b><span>${escapeHtml(s.user.email||"")}</span></div>
+      <button class="btn am-btn" id="amNick">닉네임 수정</button>
+      <button class="btn am-btn" id="amLogout">로그아웃</button>`;
+    $("#amNick").onclick=()=>{ avatarMenu.hidden=true; openNicknameModal(false); };
     $("#amLogout").onclick=()=>{ avatarMenu.hidden=true; if(confirm("로그아웃 할까요?")) clearSession(); };
   } else {
     avatarMenu.innerHTML = `<div class="am-head">로그인하고<br>모든 기능을 이용하세요</div><button class="btn primary am-btn" id="amLogin">로그인</button>`;
