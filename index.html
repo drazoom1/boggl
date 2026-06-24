@@ -3292,6 +3292,14 @@ function renderYtStatus(){
   // 채널 미설정이거나 비로그인 → 칩 숨김
   if(!HAS_YT_CHANNEL || !getSession()){ el.style.display="none"; return; }
   el.style.display="flex"; el.style.cursor="pointer";
+  // 관리자는 구독 인증 불필요 → 항상 인증된 상태로 표시
+  if(isAdmin()){
+    el.className="yt-status ok";
+    el.querySelector(".yt-label").textContent="관리자";
+    el.querySelector(".yt-sub").textContent="모든 기능 사용 가능";
+    el.onclick=()=>showToast("관리자는 구독 인증이 필요 없어요");
+    return;
+  }
   const ok = MEMBERSHIP_ENABLED ? !!((ytStatus()||{}).member) : subscribed;
   let label, sub;
   if(ok){ label = MEMBERSHIP_ENABLED ? "멤버십 인증됨" : "구독 인증됨"; sub="프리미엄 기능 사용 가능"; }
