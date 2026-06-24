@@ -721,7 +721,15 @@
       <span class="sec-title">Base <b>Recipes</b></span>
       <span class="sec-note">하나를 <b style="color:var(--ink)">베이스(전체 틀)</b>로 골라요 · ‘샘플보기’로 미리 확인 — 추후 관리자/공유 레시피로 추가돼요</span>
     </div>
-    <div class="panel"><div id="rankList"></div></div>
+    <div class="vtoggle libtoggle" id="buildModeTabs" style="margin-bottom:14px">
+      <button data-mode="new" class="on">새로운 레시피</button>
+      <button data-mode="supplement">기존 레시피 보완</button>
+    </div>
+    <div class="panel" id="basePanel"><div id="rankList"></div></div>
+    <div class="panel" id="suppPanel" style="display:none">
+      <div class="sec-note" style="margin:2px 2px 12px">보완할 <b style="color:var(--ink)">내 저장 레시피</b>를 하나 골라요. 아래 UI·기능을 더하면 <b style="color:var(--ink)">기존 프롬프트는 그대로 유지</b>한 채 추가분만 이어 붙여 드려요.</div>
+      <div id="suppList"></div>
+    </div>
   </section>
 
   <section class="sec">
@@ -1977,6 +1985,41 @@ function renderRankList(){
 }
 renderRankList();
 
+/* ===== 빌드 모드: 새로운 레시피 / 기존 레시피 보완 ===== */
+let buildMode="new";       // "new" | "supplement"
+let suppTarget=null;       // 보완 대상(내 저장 레시피)
+function renderSuppList(){
+  const el=$("#suppList"); if(!el) return;
+  if(suppTarget && !recipes.some(r=>r.id===suppTarget.id)) suppTarget=null;  // 삭제된 대상 정리
+  if(!recipes.length){
+    suppTarget=null;
+    el.innerHTML=`<div class="adm-empty" style="padding:22px 12px">저장된 레시피가 없어요.<br><span style="font-size:12px;color:var(--muted)">‘새로운 레시피’로 만들어 저장하면 여기서 보완할 수 있어요.</span></div>`;
+    return;
+  }
+  el.innerHTML="";
+  recipes.forEach(r=>{
+    const sel = suppTarget && suppTarget.id===r.id;
+    const row=document.createElement("div"); row.className="rrow"+(sel?" sel":"");
+    row.innerHTML=`<div class="rtile" style="background:var(--black);color:#fff">${escapeHtml((r.name||"R").slice(0,1))}</div>
+      <div class="rbody"><b>${escapeHtml(r.name||"내 레시피")}</b><span>${escapeHtml(r.meta||r.date||"")}</span></div>
+      <button class="rpill">${sel?"선택됨 ✓":"보완하기"}</button>`;
+    row.onclick=()=>{
+      const was = suppTarget && suppTarget.id===r.id;
+      suppTarget = was ? null : r;
+      renderSuppList(); updateHint();
+    };
+    el.appendChild(row);
+  });
+}
+$("#buildModeTabs").querySelectorAll("button").forEach(b=>b.onclick=()=>{
+  buildMode=b.dataset.mode;
+  $("#buildModeTabs").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b));
+  $("#basePanel").style.display = buildMode==="new" ? "" : "none";
+  $("#suppPanel").style.display = buildMode==="supplement" ? "" : "none";
+  if(buildMode==="supplement") renderSuppList();
+  updateHint();
+});
+
 /* ================= UI WIZARD ================= */
 let uiStep = 0;
 const uiWiz = $("#uiWiz");
@@ -2129,6 +2172,15 @@ $("#pickerTabs").querySelectorAll("button").forEach(b=>b.onclick=()=>setPickerTa
 
 /* ================= HINT ================= */
 function updateHint(){
+  if(buildMode==="supplement"){
+    if(!suppTarget){
+      $("#genHint").textContent = "보완할 기존 레시피를 골라주세요 — 필수";
+    } else {
+      const a=buildSupplementAdditions();
+      $("#genHint").textContent = `보완: ${suppTarget.name} · 추가 UI ${a.counts.ui} · 기능 ${a.counts.feat}${a.counts.memo?` · 메모 ${a.counts.memo}`:""} — 준비 완료`;
+    }
+    renderBasket(); return;
+  }
   if(!state.base){
     $("#genHint").textContent = "먼저 베이스(랭킹)를 하나 골라주세요 — 필수";
   } else {
@@ -2342,10 +2394,80 @@ ${featLines}
 자, PART 1부터 순서대로 만들어줘! 🚀`;
 }
 
+/* 보완 모드: 이번에 추가로 고른 UI·기능·메모만 모아 '추가 보완 사항' 블록 생성 */
+function buildSupplementAdditions(){
+  const base = state.base || NEUTRAL_BASE;
+  const ms = selectedMemos();
+  const fmtMemo = m => m.type==="code" ? `\`\`\`\n${m.body}\n\`\`\`` : m.body;
+  const uiMemos  = ms.filter(m=>m.cat==="UI");
+  const featMemos= ms.filter(m=>m.cat==="기능");
+  const etcMemos = ms.filter(m=>!m.cat || m.cat==="기타");
+  const harnessMemos = ms.filter(m=>m.cat==="하네스");
+
+  // 사용자가 명시적으로 바꾼 UI 단락만
+  const uiChanges = UI_STEPS.map(s=>{ const lbl=state.ui[s.key]; if(!lbl) return null; const txt=(UI_OPT[s.key]||{})[lbl]||lbl; return `- ${s.key}: ${lbl} — ${txt}`; }).filter(Boolean);
+  const uiCodes = UI_STEPS.map(s=>{ const lbl=state.ui[s.key]; if(!lbl) return null; const c=(UI_OPT_CODE[s.key]||{})[lbl]; return c?`/* ${s.key}: ${lbl} */\n${c}`:null; }).filter(Boolean);
+
+  // 사용자가 추가한 기능만(베이스 기본 제외): 토글 기능 + 직접입력 + 기능 재료
+  const featAdds=[];
+  [...state.feats].forEach(t=>{ const f=FEAT_BY_NAME[t]; if(f){ const tag=(f.tier&&f.tier!=="front")?`  [${TIER[f.tier]}]`:""; featAdds.push(`- ${f.t}: ${f.prompt}${tag}`); } });
+  [...state.customs].forEach(c=>featAdds.push(`- ${c} (사용자 추가 — 적절히 설계)`));
+  featMemos.forEach(m=>featAdds.push(`- ${m.title} (내 재료): ${fmtMemo(m)}`));
+
+  const out=[];
+  if(uiChanges.length || uiMemos.length){
+    out.push(`## ➕ 추가/변경 UI\n`
+      + (uiChanges.length?uiChanges.join("\n"):"")
+      + (uiMemos.length?`${uiChanges.length?"\n":""}${uiMemos.map(m=>`- ${m.title}\n${fmtMemo(m)}`).join("\n")}`:"")
+      + (uiCodes.length?`\n\n적용 코드(디자인 시스템 기준으로 조합):\n\`\`\`css\n${uiCodes.join("\n\n")}\n\`\`\``:""));
+  }
+  if(featAdds.length) out.push(`## ➕ 추가 기능\n${featAdds.join("\n")}`);
+  if(etcMemos.length) out.push(`## ➕ 추가 메모\n${etcMemos.map(m=>m.type==="code"?`### ${m.title} (코드)\n\`\`\`\n${m.body}\n\`\`\``:`### ${m.title}\n${m.body}`).join("\n\n")}`);
+  if(harnessMemos.length) out.push(`## ➕ 추가 작업 규칙\n${harnessMemos.map(m=>`### ${m.title}\n${m.body}`).join("\n\n")}`);
+
+  // 추가 기능 중 백엔드가 필요한 항목
+  const seen=new Set(), backendItems=[];
+  [...state.feats].forEach(t=>{ const f=FEAT_BY_NAME[t]; if(f&&f.guide&&!seen.has(f.t)){ seen.add(f.t); backendItems.push({t:f.t,tier:f.tier,guide:f.guide}); } });
+  featMemos.forEach(m=>{ const g=matGuide(m), t=(m.title||"").replace(" · 기능",""); if(g&&!seen.has(t)){ seen.add(t); backendItems.push({t,tier:"api",guide:g}); } });
+
+  return { body: out.join("\n\n"), backendItems, counts:{ ui:uiChanges.length+uiMemos.length, feat:featAdds.length, memo:etcMemos.length } };
+}
+/* 보완 모드: 기존 레시피 전체를 유지한 채 추가 보완 사항을 이어 붙인 레시피 */
+function buildSupplementRecipe(target){
+  const add = buildSupplementAdditions();
+  const additionsBlock = add.body || "(이번에 추가로 고른 UI·기능·메모가 없어요. 아래 기존 레시피를 그대로 유지·점검만 해줘.)";
+  const backendBlock = add.backendItems.length
+    ? `\n\n## ⚙️ 추가 기능의 백엔드 셋업 (필요 시 진행)\n`
+      + add.backendItems.map((f,i)=>`### ${i+1}) ${f.t}  [${TIER[f.tier]||f.tier}]\n${f.guide}`).join("\n\n")
+    : "";
+  return `# 🍲 Bboggl 레시피 — 기존 레시피 보완: ${target.name}
+
+너는 시니어 웹 개발자이자 UI/UX 디자이너야.
+아래 **[기존 레시피]** 는 이미 만들어 둔 레시피야. **기존 레시피의 내용·구조·디자인·기능을 절대 훼손하거나 삭제하지 말고 그대로 유지**한 채, 그 뒤의 **[추가 보완 사항]** 에 적힌 UI·기능만 기존 결과물에 자연스럽게 이어 붙여 하나로 통합(버무려)해줘. 기존 디자인 시스템과 충돌하면 기존 것을 기준으로 조화시키고, 배치가 애매하면 임의로 바꾸지 말고 요청자에게 물어봐.
+
+━━━━━━━━━━━━━━━━━━━━━━━━
+# 📜 [기존 레시피] — 그대로 유지
+${target.text}
+
+━━━━━━━━━━━━━━━━━━━━━━━━
+# ➕ [추가 보완 사항] — 위 기존 레시피에 이어서 통합
+${additionsBlock}${backendBlock}
+
+## ✅ 작업 지침
+- 기존 레시피로 만든 결과물을 출발점으로 삼아 위 추가 사항만 더해줘. 기존 기능이 사라지면 안 돼.
+- 기존 코드/구조와 중복되지 않게 통합하고, 마지막에 무엇을 추가·변경했는지 요약해줘.
+
+자, 기존 레시피를 유지한 채 보완해줘! 🚀`;
+}
+
 let lastRecipe = null;
 let cooking=false;
 function generate(){
-  if(!state.base){ toggleDrawer(false); alert("먼저 베이스(랭킹)를 하나 골라주세요."); return; }
+  if(buildMode==="supplement"){
+    if(!suppTarget){ toggleDrawer(false); alert("보완할 기존 레시피를 먼저 선택하세요."); return; }
+  } else {
+    if(!state.base){ toggleDrawer(false); alert("먼저 베이스(랭킹)를 하나 골라주세요."); return; }
+  }
   if(typeof requireLogin==="function" && !requireLogin()){ toggleDrawer(false); return; }
   if(typeof premiumLocked==="function" && premiumLocked()){ toggleDrawer(false); openGate(); return; }
   if(cooking) return;
@@ -2357,15 +2479,26 @@ function generate(){
   setTimeout(()=>{ buildAndShowRecipe(); ov.classList.remove("show"); cooking=false; }, 4400);
 }
 function buildAndShowRecipe(){
-  const text=buildRecipe();
+  let text, meta, manual, name;
+  if(buildMode==="supplement" && suppTarget){
+    text=buildSupplementRecipe(suppTarget);
+    const a=buildSupplementAdditions();
+    meta=`보완: ${suppTarget.name} · 추가 UI ${a.counts.ui} · 기능 ${a.counts.feat}${a.counts.memo?` · 메모 ${a.counts.memo}`:""}`;
+    const addManual=buildBackendManual(state.base||NEUTRAL_BASE, true);
+    manual=(suppTarget.manual?suppTarget.manual+"\n\n──────────\n\n":"")+addManual;
+    name=`${suppTarget.name} (보완)`;
+  } else {
+    text=buildRecipe();
+    const uiN=Object.keys(state.ui).length, fN=state.feats.size+state.customs.length, mN=state.memos.size;
+    meta=`베이스 ${state.base.name} · UI ${uiN}/4 · 기능 +${fN}${mN?` · 메모 ${mN}`:""}`;
+    manual=buildBackendManual(state.base, true);
+    name=`${state.base.name} 레시피`;
+  }
   $("#recipeText").textContent=text;
-  const uiN=Object.keys(state.ui).length, fN=state.feats.size+state.customs.length, mN=state.memos.size;
-  const meta=`베이스 ${state.base.name} · UI ${uiN}/4 · 기능 +${fN}${mN?` · 메모 ${mN}`:""}`;
   $("#recipeMeta").textContent=meta;
-  const manual=buildBackendManual(state.base, true);
   currentManualText=manual;
   $("#manualBoxes").innerHTML=manualBoxesHTML(manual);
-  lastRecipe={name:`${state.base.name} 레시피`, meta, text, manual};
+  lastRecipe={name, meta, text, manual};
   const guide=buildGuide(), gb=$("#guideBtn");
   if(guide){ gb.style.display=""; gb.dataset.guide=guide; } else { gb.style.display="none"; gb.dataset.guide=""; }
   $("#recipe").style.display="block";
