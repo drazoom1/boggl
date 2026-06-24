@@ -3144,6 +3144,7 @@ async function hydrateCloud(){
       renderPoints(); renderYtStatus(); renderAvatar();
       try{renderRecipes();}catch(e){} try{renderPantry();}catch(e){} try{renderMemoPickers();}catch(e){} try{updateHint();}catch(e){}
     } else { renderPoints(); }   // 신규 사용자: 기본 1000 표시
+    cloudSync();             // 기존 가입자 행에 이메일 등 누락 정보 보강 저장
     maybePromptNickname();   // 닉네임 없으면 최초 설정 창
   }catch(e){ console.warn(e); }
 }
@@ -3212,9 +3213,10 @@ function renderNickAv(){
 function openNicknameModal(first){
   const s=getSession(); if(!s) return;
   nickFirst=!!first; _pendingAvatar=null;
-  $("#nickTitle").textContent = first ? "프로필을 설정해주세요 🎉" : "프로필 수정";
+  $("#nickTitle").textContent = first ? "닉네임을 설정해주세요 🎉" : "프로필 수정";
   $("#nickDesc").style.display = first ? "" : "none";
-  $("#nickInput").value = nickname || s.user.name || "";
+  if(first) $("#nickDesc").textContent = "Bboggl에서 사용할 닉네임을 정해주세요. (필수)";
+  $("#nickInput").value = first ? "" : (nickname || s.user.name || "");
   $("#nickCancel").style.display = first ? "none" : "";
   renderNickAv();
   $("#nickModal").classList.add("open");
@@ -3245,7 +3247,8 @@ function saveNickname(){
 $("#nickSave").onclick=saveNickname;
 $("#nickCancel").onclick=()=>$("#nickModal").classList.remove("open");
 $("#nickModal").onclick=(e)=>{ if(e.target===$("#nickModal") && !nickFirst) $("#nickModal").classList.remove("open"); };
-$("#nickInput").addEventListener("keydown",e=>{ if(e.key==="Enter") saveNickname(); });
+$("#nickInput").addEventListener("keydown",e=>{ if(e.key==="Enter") saveNickname(); if(e.key==="Escape" && nickFirst) e.preventDefault(); });
+document.addEventListener("keydown",e=>{ if(e.key==="Escape" && nickFirst && $("#nickModal").classList.contains("open")) e.preventDefault(); }, true);
 $("#nickInput").addEventListener("input", renderNickAv);
 $("#nickPick").onclick=()=>$("#nickFile").click();
 $("#nickAvClear").onclick=()=>{ _pendingAvatar=""; renderNickAv(); };
