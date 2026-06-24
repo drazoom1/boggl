@@ -824,13 +824,16 @@
         <span class="sec-title">🔧 관리자 <b>페이지</b></span>
         <span class="sec-note">혼잡스 채널 관리자 전용 — 공유 검수 · 가입자 관리</span>
       </div>
-      <div class="vtoggle libtoggle" id="admTabs"><button data-tab="review" class="on">공유 검수</button><button data-tab="users">가입자 관리</button></div>
+      <div class="vtoggle libtoggle" id="admTabs"><button data-tab="review" class="on">공유 검수</button><button data-tab="users">가입자 관리</button><button data-tab="rejoin">재가입 승인</button></div>
 
       <div id="admReview">
         <div class="panel"><div id="admReviewList"></div></div>
       </div>
       <div id="admUsers" style="display:none">
         <div class="panel"><div id="admUsersList"></div></div>
+      </div>
+      <div id="admRejoin" style="display:none">
+        <div class="panel"><div id="admRejoinList"></div></div>
       </div>
     </section>
   </div>
@@ -2940,7 +2943,8 @@ function renderAdmin(){
   const on=$("#admTabs").querySelector(".on").dataset.tab;
   $("#admReview").style.display = on==="review" ? "" : "none";
   $("#admUsers").style.display  = on==="users"  ? "" : "none";
-  if(on==="review") renderAdmReview(); else renderAdmUsers();
+  $("#admRejoin").style.display = on==="rejoin" ? "" : "none";
+  if(on==="review") renderAdmReview(); else if(on==="users") renderAdmUsers(); else renderAdmRejoin();
 }
 $("#admTabs").querySelectorAll("button").forEach(b=>b.onclick=()=>{
   $("#admTabs").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b));
@@ -2997,6 +3001,40 @@ async function renderAdmUsers(){
       if(error){ console.warn(error); alert("포인트 지급 실패 (관리자 RLS 확인)"); return; }
       showToast(`${u.nickname||"사용자"}님에게 ${amt>0?"+":""}${amt}P`);
       renderAdmUsers();
+    };
+  });
+}
+async function renderAdmRejoin(){
+  const el=$("#admRejoinList"); el.innerHTML=`<div class="adm-empty">불러오는 중…</div>`;
+  let rows=[], err=null;
+  try{ const {data,error}=await sb.from('boggl_blocked').select('email,status,created_at').order('created_at',{ascending:false}); if(error){console.warn(error);err=error;} else rows=data||[]; }catch(e){ console.warn(e); err=e; }
+  const pending = rows.filter(r=>(r.status||"pending")!=="approved");
+  if(!pending.length){
+    el.innerHTML = err
+      ? `<div class="adm-empty">목록을 불러오지 못했어요.<br><span style="font-size:12px;color:var(--muted)">${escapeHtml(err.message||err.code||"boggl_blocked 테이블/RLS SQL이 필요해요.")}</span></div>`
+      : `<div class="adm-empty">재가입 승인 대기 중인 계정이 없어요.</div>`;
+    return;
+  }
+  const fmtDate=(s)=>s?String(s).slice(0,10):"-";
+  el.innerHTML = `<div style="padding:8px 6px 12px;color:var(--muted);font-size:13px">탈퇴 이력(승인 대기) <b style="color:var(--ink)">${pending.length}</b>건 · 승인하면 해당 구글 아이디로 재가입할 수 있어요.</div>` + pending.map(r=>`<div class="adm-row" data-email="${escapeHtml(r.email)}">
+      <div class="ainfo"><b>${escapeHtml(r.email)}</b><span>탈퇴 ${fmtDate(r.created_at)} · 재가입 승인 대기</span></div>
+      <div style="display:flex;gap:6px;flex-shrink:0">
+        ${iconBtn("primary","add","재가입 승인",'data-act="approve"')}
+        ${iconBtn("danger","trash","기록 삭제",'data-act="remove"')}
+      </div></div>`).join("");
+  el.querySelectorAll(".adm-row").forEach(row=>{
+    const email=row.dataset.email;
+    row.querySelector('[data-act="approve"]').onclick=async ()=>{
+      if(!confirm(`'${email}' 계정의 재가입을 승인할까요?`)) return;
+      const {error}=await sb.from('boggl_blocked').update({status:'approved'}).eq('email',email);
+      if(error){ console.warn(error); alert("승인 실패 (관리자 RLS 확인)"); return; }
+      showToast("재가입을 승인했어요."); renderAdmRejoin();
+    };
+    row.querySelector('[data-act="remove"]').onclick=async ()=>{
+      if(!confirm(`'${email}' 탈퇴 기록을 삭제할까요?\n(삭제하면 제한 없이 재가입할 수 있어요)`)) return;
+      const {error}=await sb.from('boggl_blocked').delete().eq('email',email);
+      if(error){ console.warn(error); alert("삭제 실패"); return; }
+      showToast("기록을 삭제했어요."); renderAdmRejoin();
     };
   });
 }
@@ -3315,13 +3353,25 @@ function renderYtStatus(){
   el.onclick = ()=>{ if(ok) showToast("이미 구독 인증됨"); else startYouTubeAuth(); };
 }
 async function clearSession(){ try{ await sb.auth.signOut(); }catch(e){} LS.set("nembi_auth",null); sbUserId=null; location.reload(); }
+/* 재가입 차단 여부: 탈퇴 이력 있고 아직 승인 안 됨 */
+async function isReJoinBlocked(email){
+  if(!email) return false;
+  try{
+    const { data, error } = await sb.from('boggl_blocked').select('status').eq('email', email.toLowerCase()).maybeSingle();
+    if(error){ console.warn("재가입 확인 실패", error); return false; }  // 확인 불가 시 통과(정상 사용자 차단 방지)
+    return !!(data && (data.status||"pending")!=="approved");
+  }catch(e){ console.warn(e); return false; }
+}
 /* 회원 탈퇴: 내 모든 데이터 삭제 + 로그아웃 */
 async function deleteAccount(){
   if(!getSession()) return;
   if(!confirm("정말 탈퇴하시겠어요?\n\n내 레시피·재료·포인트·닉네임·공유한 레시피가 모두 삭제되며 되돌릴 수 없어요.")) return;
-  if(!confirm("마지막 확인입니다.\n모든 데이터를 삭제하고 탈퇴를 진행할까요?")) return;
+  if(!confirm("마지막 확인입니다.\n모든 데이터를 삭제하고 탈퇴를 진행할까요?\n\n※ 탈퇴 후 같은 구글 계정으로 재가입하려면 관리자 승인이 필요합니다.")) return;
+  const myEmail=(getSession()&&getSession().user&&getSession().user.email||"").toLowerCase();
   try{
     if(sbUserId){
+      // 탈퇴 이력 기록(재가입 시 관리자 승인 필요) — 관리자 본인은 제외
+      if(myEmail && !isAdmin()){ try{ await sb.from('boggl_blocked').upsert({ email:myEmail, status:'pending' }); }catch(e){ console.warn("탈퇴 이력 기록 실패", e); } }
       await sb.from('boggl_shared').delete().eq('user_id', sbUserId);
       await sb.from('boggl_store').delete().eq('user_id', sbUserId);
     }
@@ -3386,6 +3436,16 @@ renderAvatar();
 sb.auth.onAuthStateChange(async (event, session)=>{
   if(session && session.user){
     applySupabaseSession(session);
+    // 재가입 차단: 탈퇴 이력이 있고 아직 승인 안 된 계정은 막음(관리자 제외)
+    if(!isAdmin()){
+      const blocked = await isReJoinBlocked(session.user.email);
+      if(blocked){
+        alert("이 구글 계정은 탈퇴 이력이 있어, 재가입에 관리자 승인이 필요합니다.\n\n승인되면 다시 로그인해주세요.\n문의: honjobs@naver.com");
+        try{ await sb.auth.signOut(); }catch(e){}
+        LS.set("nembi_auth",null); sbUserId=null; renderAvatar();
+        return;
+      }
+    }
     // youtube 권한을 방금 받은 경우(구독 인증 단계)에만 구독 확인
     const pending = sessionStorage.getItem("boggl_yt_pending");
     // 먼저 클라우드 데이터를 불러온 뒤(구독 상태 클로버 방지) 구독 확인을 진행
