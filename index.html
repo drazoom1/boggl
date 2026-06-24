@@ -3198,7 +3198,7 @@ sb.auth.onAuthStateChange((event, session)=>{
         const verified = MEMBERSHIP_ENABLED ? !!(ytStatus()||{}).member : !!(ytStatus()||{}).subscribed;
         if(verified){
           $("#gateModal").classList.remove("open");
-          if(!subBonus){ subBonus=true; LS.set("nembi_subbonus",true); showToast("구독 인증 완료! 보너스 3,000P 지급 🎉"); addPoints(3000); }
+          if(!subBonus){ subBonus=true; LS.set("nembi_subbonus",true); showToast("구독 인증 완료! 보너스 10,000P 지급 🎉"); addPoints(10000); }
           else showToast("구독 인증 완료! 이제 사용할 수 있어요.");
         }
         else { openGate(); showToast("아직 구독이 확인되지 않았어요."); }
