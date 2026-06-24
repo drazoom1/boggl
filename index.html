@@ -3162,13 +3162,15 @@ async function startGoogleLogin(){
       options:{ redirectTo: location.origin+location.pathname } });
   }catch(e){ alert("로그인을 시작하지 못했어요. 잠시 후 다시 시도해주세요."); }
 }
-/* 구독 인증: youtube 권한을 이때만 별도 요청 (이 단계에서만 경고가 뜸) */
+/* 구독 인증: youtube 권한을 이때만 별도 요청 (현재 로그인 계정으로 — 계정 선택창 건너뜀) */
 async function startYouTubeAuth(){
   try{
-    if(!getSession()){ $("#loginPrompt").classList.add("open"); return; }
+    const s=getSession();
+    if(!s){ $("#loginPrompt").classList.add("open"); return; }
     sessionStorage.setItem("boggl_yt_pending","1");
     await sb.auth.signInWithOAuth({ provider:'google',
-      options:{ scopes:YT_SCOPE, redirectTo: location.origin+location.pathname } });
+      options:{ scopes:YT_SCOPE, redirectTo: location.origin+location.pathname,
+        queryParams: { login_hint: (s.user&&s.user.email)||"", include_granted_scopes:"true" } } });
   }catch(e){ alert("구독 인증을 시작하지 못했어요. 잠시 후 다시 시도해주세요."); }
 }
 authGate.querySelectorAll(".abtn[data-login='google']").forEach(b=> b.onclick=startGoogleLogin);
