@@ -3140,19 +3140,18 @@ function ytFetch(path, token){
 }
 async function checkYouTube(token){
   if(!HAS_YT_CHANNEL){ mergeSession({ yt:{ configured:false } }); return; }
-  let yt={ configured:true, hasChannel:false, subscribed:false, member:null, error:null, checkedAt:Date.now() };
+  let yt={ configured:true, hasChannel:true, subscribed:false, member:null, error:null, checkedAt:Date.now() };
   try{
-    // 1) 로그인 사용자의 유튜브 채널 보유 여부
-    const ch = await ytFetch("channels?part=id&mine=true", token);
-    if(ch.error){ yt.error = ch.error.message || "YouTube API 오류"; mergeSession({ yt }); renderYtStatus(); return yt; }
-    yt.hasChannel = !!(ch.items && ch.items.length);
-    // 2) 대상 채널 구독 여부 (본인 구독 목록 — 비공개여도 조회됨)
-    if(yt.hasChannel){
-      const sub = await ytFetch("subscriptions?part=id&mine=true&maxResults=1&forChannelId="+encodeURIComponent(YOUTUBE_CHANNEL_ID), token);
-      if(sub.error){ yt.error = sub.error.message || "구독 조회 오류"; }
-      else yt.subscribed = !!(sub.items && sub.items.length);
+    // 대상 채널 구독 여부를 바로 조회 (채널 보유 확인 없이 — 더 안정적)
+    const sub = await ytFetch("subscriptions?part=id&mine=true&maxResults=1&forChannelId="+encodeURIComponent(YOUTUBE_CHANNEL_ID), token);
+    if(sub.error){
+      // 채널이 아예 없으면(youtubeSignupRequired) 미구독으로 처리, 그 외 오류는 표시
+      if(/signup|channel/i.test(sub.error.reason||sub.error.message||"")){ yt.hasChannel=false; yt.subscribed=false; }
+      else yt.error = sub.error.message || "구독 조회 오류";
+    } else {
+      yt.subscribed = !!(sub.items && sub.items.length);
     }
-    // 3) 멤버십: 뷰어 측 조회 API 없음 → MEMBERSHIP_ENABLED + 소유자 서버가 있을 때만 채워짐
+    // 멤버십: 뷰어 측 조회 API 없음 → MEMBERSHIP_ENABLED + 소유자 서버가 있을 때만 채워짐
   }catch(e){ yt.error = String((e&&e.message)||e); console.warn("YouTube 확인 실패", e); }
   mergeSession({ yt });
   if(!yt.error){ subscribed = !!yt.subscribed; LS.set("nembi_subscribed", subscribed); cloudSync(); }  // 구독 상태 계정 저장
