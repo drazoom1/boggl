@@ -449,6 +449,7 @@
   /* 카드 더보기(⋯) 메뉴 */
   .more-wrap{position:relative;display:inline-flex}
   .more-menu{position:absolute;left:0;bottom:calc(100% + 6px);background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 30px rgba(0,0,0,.16);padding:6px;z-index:40;min-width:152px;display:flex;flex-direction:column}
+  .more-menu[hidden]{display:none}
   .more-menu button{background:none;border:none;text-align:left;padding:9px 12px;border-radius:8px;font-family:inherit;font-size:13px;font-weight:600;color:var(--ink);cursor:pointer;white-space:nowrap}
   .more-menu button:hover{background:var(--field)}
   .more-menu button.danger{color:#d8513a}
@@ -583,6 +584,19 @@
     <div class="modal-actions">
       <button class="btn" id="nickCancel">취소</button>
       <button class="btn primary" id="nickSave">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- 공유 방법 선택 모달 -->
+<div class="modal-back" id="shareModal">
+  <div class="modal" style="max-width:360px;text-align:center">
+    <div class="modal-title" style="margin-bottom:6px">공유 방법 선택</div>
+    <p id="shareDesc" style="color:var(--muted);font-size:13.5px;line-height:1.55;margin-bottom:18px">어떻게 공유할까요?</p>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <button class="btn primary" id="shareLib" style="justify-content:center"><svg viewBox="0 0 24 24"><path d="M4 6h16v13H4z"/><path d="M4 9h16M9 6v13"/></svg>공유 보관함에 올리기</button>
+      <button class="btn" id="shareLink" style="justify-content:center"><svg viewBox="0 0 24 24"><path d="M9 12a3 3 0 0 1 3-3h3a3 3 0 0 1 0 6h-1.5"/><path d="M15 12a3 3 0 0 1-3 3H9a3 3 0 0 1 0-6h1.5"/></svg>링크/텍스트로 공유</button>
+      <button class="btn" id="shareCancel" style="justify-content:center;border:none">취소</button>
     </div>
   </div>
 </div>
@@ -2358,26 +2372,56 @@ function confirmSaveRecipe(){
 }
 $("#saveConfirm").onclick=confirmSaveRecipe;
 $("#saveName").addEventListener("keydown",e=>{ if(e.key==="Enter") confirmSaveRecipe(); });
-/* 공유 = 공유 보관함(누구나 담아갈 수 있는 곳)에 올리기 */
-async function shareRecipe(rec){
+/* ===== 공유: 링크 vs 공유 보관함 선택 ===== */
+let _shareItem=null, _shareKind="recipe";
+function openShareChoice(item, kind){
+  _shareItem=item; _shareKind=kind||"recipe";
+  $("#shareDesc").textContent = (kind==="material"?"이 재료를":"이 레시피를")+" 어떻게 공유할까요?";
+  $("#shareModal").classList.add("open");
+}
+$("#shareCancel").onclick=()=>$("#shareModal").classList.remove("open");
+$("#shareModal").onclick=(e)=>{ if(e.target===$("#shareModal")) $("#shareModal").classList.remove("open"); };
+$("#shareLib").onclick=()=>{ $("#shareModal").classList.remove("open"); publishToLibrary(_shareItem,_shareKind); };
+$("#shareLink").onclick=()=>{ $("#shareModal").classList.remove("open"); shareLink(_shareItem,_shareKind); };
+
+/* 링크/텍스트로 공유 (기기 공유 시트 또는 복사) */
+function shareLink(item, kind){
+  const title = item.name || item.title || "Bboggl";
+  const body = kind==="material" ? (item.body||matGuide(item)||"") : (item.text||"");
+  const text = `${title}\n\n${body}\n\n— Bboggl에서 만든 ${kind==="material"?"재료":"레시피"} · https://bboggl.com`;
+  if(navigator.share){ navigator.share({ title, text }).catch(()=>{}); }
+  else { navigator.clipboard.writeText(text).then(()=>showToast("내용을 복사했어요 — 붙여넣어 공유하세요!")); }
+}
+/* 공유 보관함에 올리기 (검수 후 등록) */
+async function publishToLibrary(item, kind){
   if(typeof requireLogin==="function" && !requireLogin()) return;
   if(!sbUserId){ alert("로그인 후 공유할 수 있어요."); return; }
-  if(!confirm("이 레시피를 공유 요청할까요?\n관리자 검수 후 공유 보관함에 등록돼 누구나 담아갈 수 있어요.")) return;
+  if(!confirm("‘공유 보관함’에 올릴까요?\n관리자 검수 후 등록돼 누구나 담아갈 수 있어요.")) return;
   const s=getSession();
   const author = nickname || (s && s.user && (s.user.name || s.user.email)) || "사용자";
-  const payload = { id: "sh_"+(rec.id||uid("")), user_id: sbUserId, author,
-    data: { name:rec.name, meta:rec.meta||"", text:rec.text, manual:rec.manual||"", date:rec.date||today(), type:rec.type||"", sample:rec.sample||"" } };
+  let data;
+  if(kind==="material"){
+    data = { kind:"material", cat:item.cat||"기타", type:item.type||"memo", title:item.title, body:item.body||"", demo:item.demo||"", elem:item.elem||"", label:item.label||"", featIc:item.featIc||"", guide:item.guide||"" };
+  } else {
+    data = { kind:"recipe", name:item.name, meta:item.meta||"", text:item.text, manual:item.manual||"", date:item.date||today(), type:item.type||"", sample:item.sample||"" };
+  }
+  const payload = { id:"sh_"+(item.id||uid("")), user_id:sbUserId, author, kind, data };
   try{
     const { error } = await sb.from('boggl_shared').upsert(payload);
-    if(error){ console.warn("공유 실패", error); alert("공유 요청에 실패했어요. 잠시 후 다시 시도해주세요."); return; }
+    if(error){ console.warn("공유 실패", error); alert("공유 요청 실패:\n"+(error.message||error.code||"알 수 없는 오류")+"\n\nSupabase에 boggl_shared 테이블/컬럼 SQL이 실행됐는지 확인해주세요."); return; }
     showToast("공유 요청 완료! 관리자 검수 후 등록돼요 ✅");
-  }catch(e){ console.warn(e); alert("공유에 실패했어요."); }
+  }catch(e){ console.warn(e); alert("공유 요청에 실패했어요."); }
 }
-/* 공유 레시피를 내 보관함으로 담기 */
+/* 공유 항목을 내 보관함으로 담기 */
 function addSharedRecipeToMine(rec){
   if(typeof requireLogin==="function" && !requireLogin()) return;
   recipes.unshift({ id:uid("r"), name:rec.name, meta:(rec.meta||"")+" · 공유에서 담음", text:rec.text, manual:rec.manual||"", date:today(), type:rec.type||"기타", sample:rec.sample||"" });
   saveRecipes(); renderRecipes(); showToast("내 레시피에 담았어요!");
+}
+function addSharedMaterialToMine(mat){
+  if(typeof requireLogin==="function" && !requireLogin()) return;
+  memos.unshift({ id:uid("m"), cat:mat.cat||"기타", type:mat.type||"memo", title:mat.title, body:mat.body||"", date:today(), demo:mat.demo||"", elem:mat.elem||"", label:mat.label||"", featIc:mat.featIc||"", guide:mat.guide||"" });
+  saveMemos(); renderPantry(); renderMemoPickers(); showToast("내 재료에 담았어요!");
 }
 function closeAllMoreMenus(except){ document.querySelectorAll(".more-menu").forEach(m=>{ if(m!==except) m.hidden=true; }); }
 document.addEventListener("click",()=>closeAllMoreMenus(null));
@@ -2436,7 +2480,7 @@ function renderRecipes(){
     const id=card.dataset.id; const rec=recipes.find(x=>x.id===id);
     mountThumb(card.querySelector(".vthumb"), rec.sample);
     card.querySelector('[data-act="text"]').onclick=()=>openRecipeText(`${rec.name} — 전체 레시피`, rec.text);
-    card.querySelector('[data-act="share"]').onclick=()=>shareRecipe(rec);
+    card.querySelector('[data-act="share"]').onclick=()=>openShareChoice(rec,"recipe");
     // 더보기(⋯) 메뉴 토글
     const moreBtn=card.querySelector('[data-act="more"]'), menu=card.querySelector('.more-menu');
     moreBtn.onclick=(e)=>{ e.stopPropagation(); closeAllMoreMenus(menu); menu.hidden=!menu.hidden; };
@@ -2548,7 +2592,7 @@ async function renderShared(){
   // 사용자들이 올린 공유 레시피 불러오기
   let community=[];
   if(showComm){
-    try{ const { data, error } = await sb.from('boggl_shared').select('id,author,user_id,data').eq('status','approved').order('created_at',{ascending:false}); if(!error) community=data||[]; else console.warn(error); }
+    try{ const { data, error } = await sb.from('boggl_shared').select('id,author,user_id,data,kind').eq('status','approved').order('created_at',{ascending:false}); if(!error) community=(data||[]).filter(r=>(r.kind||"recipe")==="recipe"); else console.warn(error); }
     catch(e){ console.warn(e); }
   }
   let html="";
@@ -2668,6 +2712,7 @@ function renderPantry(){
     let acts="";
     if(m.demo) acts+=iconBtn("","view","예시 보기",'data-act="prev"');
     if(m.type==="code"||m.type==="md"||matGuide(m)) acts+=iconBtn("","recipe","레시피 보기",'data-act="code"');
+    acts+=iconBtn("","share","공유",'data-act="share"');
     acts+=iconBtn("","edit","수정",'data-act="edit"');
     acts+=iconBtn("danger","trash","삭제",'data-act="del"');
     return matCard(m, acts);
@@ -2676,6 +2721,7 @@ function renderPantry(){
     const id=card.dataset.id; const m=memos.find(x=>x.id===id);
     if(m.demo){ mountThumb(card.querySelector(".matthumb"), m.demo); const pv=card.querySelector('[data-act="prev"]'); if(pv) pv.onclick=()=>openPreview(m.title+" — 예시", m.demo); }
     const cb=card.querySelector('[data-act="code"]'); if(cb) cb.onclick=()=>openCode(m);
+    card.querySelector('[data-act="share"]').onclick=()=>openShareChoice(m,"material");
     card.querySelector('[data-act="edit"]').onclick=()=>openMemoModal(m);
     card.querySelector('[data-act="del"]').onclick=()=>{ if(!confirm("이 메모를 삭제할까요?"))return; memos=memos.filter(x=>x.id!==id); state.memos.delete(id); saveMemos(); renderPantry(); renderMemoPickers(); updateHint(); };
   });
@@ -2726,10 +2772,21 @@ function openRecipeText(title, text){
   const html=`<!doctype html><meta charset='utf-8'><style>body{font-family:ui-monospace,SFMono-Regular,Menlo,'Apple SD Gothic Neo',monospace;padding:22px 24px;color:#1c1c1e;background:#fff;white-space:pre-wrap;word-break:break-word;line-height:1.7;font-size:12.8px}</style>${esc(text)}`;
   openPreview(title, html);
 }
-function renderPantryShared(){
+async function renderPantryShared(){
   const el=$("#pantrySharedList");
   renderFilterBar("panSharedFilterBar", ["UI","기능","기타","하네스"], panSharedFilter, t=>{ panSharedFilter=t; renderPantryShared(); });
-  let all = SHARED_MEMOS.concat(UI_SHARED).concat(FEAT_SHARED).concat(HARNESS_SHARED);
+  // 사용자들이 공유 보관함에 올린 재료(관리자 승인됨) 불러오기
+  let community=[];
+  if(typeof sb!=="undefined" && sb){
+    try{ const { data, error } = await sb.from('boggl_shared').select('id,author,user_id,data,kind').eq('status','approved').order('created_at',{ascending:false});
+      if(!error) community=(data||[]).filter(r=>(r.kind||"recipe")==="material").map(r=>{
+        const d=r.data||{};
+        return { id:r.id, _sid:r.id, _owner:r.user_id, author:r.author, cat:d.cat||"기타", type:d.type||"memo", title:d.title, body:d.body||"", demo:d.demo||"", elem:d.elem||"", label:d.label||"", featIc:d.featIc||"", guide:d.guide||"" };
+      });
+      else console.warn(error);
+    }catch(e){ console.warn(e); }
+  }
+  let all = community.concat(SHARED_MEMOS, UI_SHARED, FEAT_SHARED, HARNESS_SHARED);
   if(panSharedFilter!=="전체") all = all.filter(m=>m.cat===panSharedFilter);
   el.className="matgrid";
   el.innerHTML = all.map(m=>{
@@ -2737,6 +2794,7 @@ function renderPantryShared(){
     if(m.demo) acts+=iconBtn("","view","예시 보기",'data-act="prev"');
     if(m.type==="code"||m.type==="md"||matGuide(m)) acts+=iconBtn("","recipe","레시피 보기",'data-act="code"');
     acts+=iconBtn("primary","add","담기",'data-act="add"');
+    if(m._sid && m._owner && m._owner===sbUserId) acts+=iconBtn("","unshare","공유 취소",'data-act="unshare"');
     return matCard(m, acts);
   }).join("");
   el.querySelectorAll(".scard").forEach(card=>{
@@ -2745,6 +2803,11 @@ function renderPantryShared(){
     const cb=card.querySelector('[data-act="code"]'); if(cb) cb.onclick=()=>openCode(m);
     card.querySelector('[data-act="add"]').onclick=()=>{
       memos.unshift(cloneMat(m)); saveMemos(); renderMemoPickers(); showToast("내 재료에 담았어요!");
+    };
+    const ub=card.querySelector('[data-act="unshare"]'); if(ub) ub.onclick=async()=>{
+      if(!confirm("공유 보관함에서 내릴까요?")) return;
+      try{ await sb.from('boggl_shared').delete().eq('id', m._sid); showToast("공유를 취소했어요."); renderPantryShared(); }
+      catch(e){ console.warn(e); alert("공유 취소에 실패했어요."); }
     };
   });
 }
@@ -2841,18 +2904,18 @@ $("#admTabs").querySelectorAll("button").forEach(b=>b.onclick=()=>{
 async function renderAdmReview(){
   const el=$("#admReviewList"); el.innerHTML=`<div class="adm-empty">불러오는 중…</div>`;
   let rows=[];
-  try{ const {data,error}=await sb.from('boggl_shared').select('id,author,user_id,data,status,created_at').eq('status','pending').order('created_at',{ascending:false}); if(error)console.warn(error); else rows=data||[]; }catch(e){ console.warn(e); }
+  try{ const {data,error}=await sb.from('boggl_shared').select('id,author,user_id,data,kind,status,created_at').eq('status','pending').order('created_at',{ascending:false}); if(error)console.warn(error); else rows=data||[]; }catch(e){ console.warn(e); }
   if(!rows.length){ el.innerHTML=`<div class="adm-empty">검수 대기 중인 공유 요청이 없어요.</div>`; return; }
-  el.innerHTML = rows.map(r=>{ const d=r.data||{}; return `<div class="adm-row" data-id="${r.id}">
-    <div class="ainfo"><b>${escapeHtml(d.name||"레시피")}</b><span>요청자: ${escapeHtml(r.author||"사용자")} · ${escapeHtml(d.meta||d.type||"")}</span></div>
+  el.innerHTML = rows.map(r=>{ const d=r.data||{}; const isMat=(r.kind||"recipe")==="material"; const title=isMat?(d.title||"재료"):(d.name||"레시피"); const tag=isMat?"재료":"레시피"; return `<div class="adm-row" data-id="${r.id}">
+    <div class="ainfo"><b><span class="memo-cat" style="margin-right:6px">${tag}</span>${escapeHtml(title)}</b><span>요청자: ${escapeHtml(r.author||"사용자")} · ${escapeHtml(d.meta||d.cat||d.type||"")}</span></div>
     <div style="display:flex;gap:6px;flex-shrink:0">
       ${iconBtn("","recipe","보기",'data-act="view"')}
       ${iconBtn("primary","add","등록",'data-act="approve"')}
       ${iconBtn("danger","trash","거절",'data-act="reject"')}
     </div></div>`; }).join("");
   el.querySelectorAll(".adm-row").forEach(row=>{
-    const r=rows.find(x=>x.id===row.dataset.id), d=r.data||{};
-    row.querySelector('[data-act="view"]').onclick=()=>openRecipeText(`${d.name||"레시피"} — 전체`, d.text||"");
+    const r=rows.find(x=>x.id===row.dataset.id), d=r.data||{}; const isMat=(r.kind||"recipe")==="material";
+    row.querySelector('[data-act="view"]').onclick=()=>{ if(isMat) openCode({type:d.type||"memo",title:d.title,body:d.body||"",cat:d.cat||"기타",guide:d.guide||"",demo:d.demo||"",elem:d.elem||"",label:d.label||""}); else openRecipeText(`${d.name||"레시피"} — 전체`, d.text||""); };
     row.querySelector('[data-act="approve"]').onclick=async ()=>{ const {error}=await sb.from('boggl_shared').update({status:'approved'}).eq('id',r.id); if(error){console.warn(error);alert("승인 실패 (관리자 RLS 확인)");return;} showToast("등록(승인)했어요!"); renderAdmReview(); };
     row.querySelector('[data-act="reject"]').onclick=async ()=>{ if(!confirm("이 공유 요청을 거절(삭제)할까요?"))return; const {error}=await sb.from('boggl_shared').delete().eq('id',r.id); if(error){console.warn(error);alert("거절 실패");return;} showToast("거절했어요."); renderAdmReview(); };
   });
