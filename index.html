@@ -296,6 +296,8 @@
   .am-user b{display:block;font-size:14.5px}
   .am-user span{font-size:12px;color:var(--muted);word-break:break-all}
   .am-btn{width:100%;justify-content:center}
+  .am-del{display:block;width:100%;background:none;border:none;color:var(--muted);font-family:inherit;font-size:11.5px;cursor:pointer;padding:8px 0 2px;margin-top:2px}
+  .am-del:hover{color:#d8513a;text-decoration:underline}
   /* 유튜브 구독/멤버십 상태 칩 */
   .yt-status{display:flex;align-items:center;gap:8px;padding:5px 12px 5px 9px;border-radius:999px;font-size:12px;flex-shrink:0}
   .yt-status svg{width:20px;height:20px;flex-shrink:0;fill:currentColor;stroke:none}
@@ -3137,6 +3139,22 @@ function renderYtStatus(){
   el.onclick = ()=>{ if(ok) showToast("이미 구독 인증됨"); else startYouTubeAuth(); };
 }
 async function clearSession(){ try{ await sb.auth.signOut(); }catch(e){} LS.set("nembi_auth",null); sbUserId=null; location.reload(); }
+/* 회원 탈퇴: 내 모든 데이터 삭제 + 로그아웃 */
+async function deleteAccount(){
+  if(!getSession()) return;
+  if(!confirm("정말 탈퇴하시겠어요?\n\n내 레시피·재료·포인트·닉네임·공유한 레시피가 모두 삭제되며 되돌릴 수 없어요.")) return;
+  if(!confirm("마지막 확인입니다.\n모든 데이터를 삭제하고 탈퇴를 진행할까요?")) return;
+  try{
+    if(sbUserId){
+      await sb.from('boggl_shared').delete().eq('user_id', sbUserId);
+      await sb.from('boggl_store').delete().eq('user_id', sbUserId);
+    }
+  }catch(e){ console.warn("데이터 삭제 실패", e); }
+  ["nembi_auth","nembi_recipes","nembi_memos","nembi_points","nembi_subbonus","nembi_nick","nembi_bases","nembi_submissions"].forEach(k=>localStorage.removeItem(k));
+  try{ await sb.auth.signOut(); }catch(e){}
+  alert("탈퇴가 완료됐어요. 그동안 이용해주셔서 감사합니다.");
+  location.href = location.origin + location.pathname;
+}
 /* 로그인: 기본 정보만(민감 권한 X) → '확인 안된 앱' 경고 안 뜸 */
 async function startGoogleLogin(){
   try{
@@ -3162,9 +3180,11 @@ function renderAvatarMenu(){
     const display = nickname || s.user.name || "사용자";
     avatarMenu.innerHTML = `<div class="am-user"><b>${escapeHtml(display)}</b><span>${escapeHtml(s.user.email||"")}</span></div>
       <button class="btn am-btn" id="amNick">닉네임 수정</button>
-      <button class="btn am-btn" id="amLogout">로그아웃</button>`;
+      <button class="btn am-btn" id="amLogout">로그아웃</button>
+      <button class="am-del" id="amDelete">회원 탈퇴</button>`;
     $("#amNick").onclick=()=>{ avatarMenu.hidden=true; openNicknameModal(false); };
     $("#amLogout").onclick=()=>{ avatarMenu.hidden=true; if(confirm("로그아웃 할까요?")) clearSession(); };
+    $("#amDelete").onclick=()=>{ avatarMenu.hidden=true; deleteAccount(); };
   } else {
     avatarMenu.innerHTML = `<div class="am-head">로그인하고<br>모든 기능을 이용하세요</div><button class="btn primary am-btn" id="amLogin">로그인</button>`;
     $("#amLogin").onclick=()=>{ avatarMenu.hidden=true; authGate.classList.add("show"); };
