@@ -3453,13 +3453,25 @@ sb.auth.onAuthStateChange(async (event, session)=>{
     if(pending){
       sessionStorage.removeItem("boggl_yt_pending");
       if(session.provider_token){
-        checkYouTube(session.provider_token).then((yt)=>{
+        checkYouTube(session.provider_token).then(async (yt)=>{
           renderYtStatus();
           const verified = MEMBERSHIP_ENABLED ? !!((ytStatus()||{}).member) : subscribed;
           if(verified){
             $("#gateModal").classList.remove("open");
-            if(!subBonus){ subBonus=true; LS.set("nembi_subbonus",true); showToast("구독 인증 완료! 보너스 10,000P 지급 🎉"); addPoints(10000); }
-            else { showToast("구독 인증 완료! 이제 사용할 수 있어요."); cloudSync(); }
+            // 보너스 지급 여부는 '로컬 플래그'가 아닌 '클라우드 sub_bonus'를 기준으로 판단(플래그 꼬임 방지)
+            let alreadyBonus=false;
+            try{ const {data}=await sb.from('boggl_store').select('sub_bonus').eq('user_id',sbUserId).maybeSingle(); alreadyBonus=!!(data&&data.sub_bonus); }catch(e){ console.warn(e); alreadyBonus=subBonus; }
+            if(!alreadyBonus && !isAdmin()){
+              subBonus=true; LS.set("nembi_subbonus",true);
+              points=Math.max(0,points)+10000; LS.set("nembi_points",points); renderPoints();
+              // 포인트+보너스 플래그를 즉시(디바운스 없이) 저장
+              try{ const {error}=await sb.from('boggl_store').upsert({ user_id:sbUserId, points:points, sub_bonus:true, subscribed:true }); if(error) console.warn("보너스 저장 실패",error); }catch(e){ console.warn(e); }
+              showToast("구독 인증 완료! 보너스 10,000P 지급 🎉");
+            } else {
+              subBonus=true; LS.set("nembi_subbonus",true);
+              showToast(isAdmin()?"구독 인증 완료!":"구독 인증 완료! (보너스는 1회만 지급돼요)");
+              cloudSync();
+            }
           } else {
             let msg;
             if(yt && yt.error) msg="유튜브 확인 중 오류가 났어요:\n"+yt.error+"\n\n확인할 점:\n• Google Cloud에서 'YouTube Data API v3' 사용 설정\n• 동의 화면에서 'YouTube 계정 보기' 체크 후 진행";
