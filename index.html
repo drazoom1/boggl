@@ -577,8 +577,8 @@
 <div class="modal-back" id="gateModal">
   <div class="modal" style="max-width:400px;text-align:center">
     <div class="gate-ic"><svg viewBox="0 0 24 24"><path d="M5 7.5l-1.4 4.5L5 16.5a2 2 0 0 0 1.4 1.4c1.6.4 5.6.6 5.6.6s4 0 5.6-.6A2 2 0 0 0 19 16.5l1.4-4.5L19 7.5a2 2 0 0 0-1.4-1.4C16 5.7 12 5.5 12 5.5s-4 0-5.6.6A2 2 0 0 0 5 7.5z"/><path d="M10.4 9.8l4 2.2-4 2.2z"/></svg></div>
-    <div class="modal-title" style="margin-bottom:8px">잠깐, 구독이 필요해요</div>
-    <p id="gateMsg" style="color:var(--muted);font-size:14px;line-height:1.55;margin-bottom:20px">이 기능은 채널 구독자만 사용할 수 있어요.</p>
+    <div class="modal-title" style="margin-bottom:8px">잠깐, 구독이 아직 안되었어요.</div>
+    <p id="gateMsg" style="color:var(--muted);font-size:14px;line-height:1.55;margin-bottom:20px">혼잡스 채널을 구독하시면 10,000포인트가 자동 지급돼요.</p>
     <div style="display:flex;flex-direction:column;gap:9px">
       <button class="btn primary" id="gateGo" style="justify-content:center">채널 구독하러 가기</button>
       <button class="btn" id="gateRecheck" style="justify-content:center">구독 인증하기</button>
@@ -911,6 +911,7 @@ let recipes     = LS.get("nembi_recipes", []);
 let points      = LS.get("nembi_points", 1000);   // 가입 기본 1000
 let subBonus    = LS.get("nembi_subbonus", false); // 구독 보너스(3000) 지급 여부
 let nickname    = LS.get("nembi_nick", "");        // 사용자 닉네임
+let subscribed  = LS.get("nembi_subscribed", false); // 구독 인증 상태(계정 저장 → 재인증 불필요)
 let submissions = LS.get("nembi_submissions", []);   // 검수 요청한 레시피
 function isHTMLCode(c){ return /<(!doctype|html|body|div|section|header|main|style)\b/i.test(c||""); }
 function previewDoc(s){
@@ -2996,7 +2997,7 @@ function applySupabaseSession(session){
 async function hydrateCloud(){
   if(!sbUserId) return;
   try{
-    const { data, error } = await sb.from('boggl_store').select('recipes,materials,points,sub_bonus,nickname').eq('user_id',sbUserId).maybeSingle();
+    const { data, error } = await sb.from('boggl_store').select('recipes,materials,points,sub_bonus,nickname,subscribed').eq('user_id',sbUserId).maybeSingle();
     if(error){ console.warn("불러오기 실패", error); maybePromptNickname(); return; }
     if(data){
       if(Array.isArray(data.recipes)){ recipes=data.recipes; LS.set("nembi_recipes",recipes); }
@@ -3004,7 +3005,8 @@ async function hydrateCloud(){
       if(typeof data.points==="number"){ points=data.points; LS.set("nembi_points",points); }
       if(typeof data.sub_bonus==="boolean"){ subBonus=data.sub_bonus; LS.set("nembi_subbonus",subBonus); }
       if(typeof data.nickname==="string"){ nickname=data.nickname; LS.set("nembi_nick",nickname); }
-      renderPoints();
+      if(typeof data.subscribed==="boolean"){ subscribed=data.subscribed; LS.set("nembi_subscribed",subscribed); }
+      renderPoints(); renderYtStatus();
       try{renderRecipes();}catch(e){} try{renderPantry();}catch(e){} try{renderMemoPickers();}catch(e){} try{updateHint();}catch(e){}
     } else { renderPoints(); }   // 신규 사용자: 기본 1000 표시
     maybePromptNickname();   // 닉네임 없으면 최초 설정 창
@@ -3017,7 +3019,7 @@ function cloudSync(){
   clearTimeout(_syncT);
   _syncT=setTimeout(()=>{
     const em=(getSession()&&getSession().user&&getSession().user.email)||null;
-    sb.from('boggl_store').upsert({ user_id:sbUserId, recipes:recipes, materials:memos, points:points, sub_bonus:subBonus, nickname:nickname, email:em })
+    sb.from('boggl_store').upsert({ user_id:sbUserId, recipes:recipes, materials:memos, points:points, sub_bonus:subBonus, nickname:nickname, email:em, subscribed:subscribed })
       .then(({error})=>{ if(error) console.warn("저장 실패", error); });
   },600);
 }
@@ -3110,6 +3112,7 @@ async function checkYouTube(token){
     // 3) 멤버십: 뷰어 측 조회 API 없음 → MEMBERSHIP_ENABLED + 소유자 서버가 있을 때만 채워짐
   }catch(e){ yt.error = String((e&&e.message)||e); console.warn("YouTube 확인 실패", e); }
   mergeSession({ yt });
+  if(!yt.error){ subscribed = !!yt.subscribed; LS.set("nembi_subscribed", subscribed); cloudSync(); }  // 구독 상태 계정 저장
   renderYtStatus();
   return yt;
 }
@@ -3118,18 +3121,15 @@ function ytStatus(){ const s=getSession(); return s && s.yt ? s.yt : null; }
 function premiumLocked(){
   if(isAdmin()) return false;              // 관리자는 구독 없이 무한 사용
   if(!HAS_YT_CHANNEL) return false;
-  const yt=ytStatus();
-  if(!yt) return true;
-  if(MEMBERSHIP_ENABLED) return !yt.member;     // 멤버십 게이팅(소유자 연동 시)
-  return !yt.subscribed;                          // 기본: 구독 게이팅
+  if(MEMBERSHIP_ENABLED){ const yt=ytStatus(); return !(yt&&yt.member); }
+  return !subscribed;                          // 구독 상태(계정 저장)로 판단 → 재인증 불필요
 }
 function renderYtStatus(){
   const el=$("#ytStatus"); if(!el) return;
   // 채널 미설정이거나 비로그인 → 칩 숨김
   if(!HAS_YT_CHANNEL || !getSession()){ el.style.display="none"; return; }
-  const yt=ytStatus()||{};
   el.style.display="flex"; el.style.cursor="pointer";
-  const ok = MEMBERSHIP_ENABLED ? !!yt.member : !!yt.subscribed;
+  const ok = MEMBERSHIP_ENABLED ? !!((ytStatus()||{}).member) : subscribed;
   let label, sub;
   if(ok){ label = MEMBERSHIP_ENABLED ? "멤버십 인증됨" : "구독 인증됨"; sub="프리미엄 기능 사용 가능"; }
   else { label = "구독 인증 필요"; sub="눌러서 구독 인증하기"; }
@@ -3150,7 +3150,7 @@ async function deleteAccount(){
       await sb.from('boggl_store').delete().eq('user_id', sbUserId);
     }
   }catch(e){ console.warn("데이터 삭제 실패", e); }
-  ["nembi_auth","nembi_recipes","nembi_memos","nembi_points","nembi_subbonus","nembi_nick","nembi_bases","nembi_submissions"].forEach(k=>localStorage.removeItem(k));
+  ["nembi_auth","nembi_recipes","nembi_memos","nembi_points","nembi_subbonus","nembi_nick","nembi_subscribed","nembi_bases","nembi_submissions"].forEach(k=>localStorage.removeItem(k));
   try{ await sb.auth.signOut(); }catch(e){}
   alert("탈퇴가 완료됐어요. 그동안 이용해주셔서 감사합니다.");
   location.href = location.origin + location.pathname;
@@ -3215,11 +3215,11 @@ sb.auth.onAuthStateChange((event, session)=>{
       sessionStorage.removeItem("boggl_yt_pending");
       checkYouTube(session.provider_token).then(()=>{
         renderYtStatus();
-        const verified = MEMBERSHIP_ENABLED ? !!(ytStatus()||{}).member : !!(ytStatus()||{}).subscribed;
+        const verified = MEMBERSHIP_ENABLED ? !!((ytStatus()||{}).member) : subscribed;
         if(verified){
           $("#gateModal").classList.remove("open");
           if(!subBonus){ subBonus=true; LS.set("nembi_subbonus",true); showToast("구독 인증 완료! 보너스 10,000P 지급 🎉"); addPoints(10000); }
-          else showToast("구독 인증 완료! 이제 사용할 수 있어요.");
+          else { showToast("구독 인증 완료! 이제 사용할 수 있어요."); cloudSync(); }
         }
         else { openGate(); showToast("아직 구독이 확인되지 않았어요."); }
       });
@@ -3244,10 +3244,9 @@ $("#authClose").onclick=()=>authGate.classList.remove("show");
 
 /* ===== 프리미엄(특정 기능) 게이트 모달 ===== */
 function openGate(){
-  const yt=ytStatus()||{};
   $("#gateMsg").textContent = MEMBERSHIP_ENABLED
-    ? "이 기능은 채널 유료 멤버십 가입자만 사용할 수 있어요."
-    : "이 기능은 채널 구독자만 사용할 수 있어요.";
+    ? "혼잡스 채널 유료 멤버십 가입자만 사용할 수 있어요."
+    : "혼잡스 채널을 구독하시면 10,000포인트가 자동 지급돼요.";
   $("#gateGo").style.display = HAS_YT_CHANNEL ? "" : "none";
   $("#gateModal").classList.add("open");
 }
