@@ -3256,18 +3256,28 @@ sb.auth.onAuthStateChange((event, session)=>{
     hydrateCloud();
     // youtube 권한을 방금 받은 경우(구독 인증 단계)에만 구독 확인
     const pending = sessionStorage.getItem("boggl_yt_pending");
-    if(pending && session.provider_token){
+    if(pending){
       sessionStorage.removeItem("boggl_yt_pending");
-      checkYouTube(session.provider_token).then(()=>{
-        renderYtStatus();
-        const verified = MEMBERSHIP_ENABLED ? !!((ytStatus()||{}).member) : subscribed;
-        if(verified){
-          $("#gateModal").classList.remove("open");
-          if(!subBonus){ subBonus=true; LS.set("nembi_subbonus",true); showToast("구독 인증 완료! 보너스 10,000P 지급 🎉"); addPoints(10000); }
-          else { showToast("구독 인증 완료! 이제 사용할 수 있어요."); cloudSync(); }
-        }
-        else { openGate(); showToast("아직 구독이 확인되지 않았어요."); }
-      });
+      if(session.provider_token){
+        checkYouTube(session.provider_token).then((yt)=>{
+          renderYtStatus();
+          const verified = MEMBERSHIP_ENABLED ? !!((ytStatus()||{}).member) : subscribed;
+          if(verified){
+            $("#gateModal").classList.remove("open");
+            if(!subBonus){ subBonus=true; LS.set("nembi_subbonus",true); showToast("구독 인증 완료! 보너스 10,000P 지급 🎉"); addPoints(10000); }
+            else { showToast("구독 인증 완료! 이제 사용할 수 있어요."); cloudSync(); }
+          } else {
+            let msg;
+            if(yt && yt.error) msg="유튜브 확인 중 오류가 났어요:\n"+yt.error+"\n\n확인할 점:\n• Google Cloud에서 'YouTube Data API v3' 사용 설정\n• 동의 화면에서 'YouTube 계정 보기' 체크 후 진행";
+            else if(yt && !yt.hasChannel) msg="이 구글 계정에 YouTube 채널이 없어요.\n유튜브(youtube.com)에 이 계정으로 로그인해서 채널을 만든 뒤, 혼잡스 채널을 구독하고 다시 시도해주세요.";
+            else msg="혼잡스 채널 구독이 확인되지 않았어요.\n이 계정으로 혼잡스 채널을 구독한 게 맞는지 확인 후 다시 시도해주세요.";
+            renderYtStatus(); openGate(); alert(msg);
+          }
+        });
+      } else {
+        renderYtStatus(); openGate();
+        alert("유튜브 권한이 전달되지 않았어요.\n구글 동의 화면에서 'YouTube 계정 보기' 체크박스를 체크하고 '계속'을 눌렀는지 확인한 뒤 다시 시도해주세요.");
+      }
     } else {
       renderYtStatus();   // 일반 로그인: 캐시된 구독 상태만 표시(없으면 '인증하기' 안내)
     }
