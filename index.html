@@ -2658,7 +2658,7 @@ async function renderShared(){
         <div class="vactions tight">
           ${iconBtn("primary","recipe","레시피 보기",'data-act="ctext"')}
           ${iconBtn("","add","담기",'data-act="cadd"')}
-          ${own?iconBtn("danger","trash","공유취소",'data-act="cunshare"'):""}
+          ${own?iconBtn("danger","trash","공유취소",'data-act="cunshare"'):(isAdmin()?iconBtn("danger","trash","삭제(관리자)",'data-act="cadmindel"'):"")}
         </div>
       </div>
     </div>`;
@@ -2684,6 +2684,8 @@ async function renderShared(){
     card.querySelector('[data-act="cadd"]').onclick=()=>addSharedRecipeToMine(r);
     const un=card.querySelector('[data-act="cunshare"]');
     if(un) un.onclick=async ()=>{ if(!confirm("공유 보관함에서 내릴까요?"))return; const {error}=await sb.from('boggl_shared').delete().eq('id',row.id); if(error){console.warn(error);alert("취소 실패");return;} showToast("공유를 취소했어요."); renderShared(); };
+    const ad=card.querySelector('[data-act="cadmindel"]');
+    if(ad) ad.onclick=async ()=>{ if(!confirm("[관리자] 이 공유 레시피를 삭제할까요?"))return; const {error}=await sb.from('boggl_shared').delete().eq('id',row.id); if(error){console.warn(error);alert("삭제 실패 (관리자 RLS 확인)");return;} showToast("삭제했어요."); renderShared(); };
   });
 }
 function importShared(s){
@@ -2832,6 +2834,7 @@ async function renderPantryShared(){
     if(m.type==="code"||m.type==="md"||matGuide(m)) acts+=iconBtn("","recipe","레시피 보기",'data-act="code"');
     acts+=iconBtn("primary","add","담기",'data-act="add"');
     if(m._sid && m._owner && m._owner===sbUserId) acts+=iconBtn("","unshare","공유 취소",'data-act="unshare"');
+    else if(m._sid && isAdmin()) acts+=iconBtn("danger","trash","삭제(관리자)",'data-act="admindel"');
     return matCard(m, acts);
   }).join("");
   el.querySelectorAll(".scard").forEach(card=>{
@@ -2845,6 +2848,11 @@ async function renderPantryShared(){
       if(!confirm("공유 보관함에서 내릴까요?")) return;
       try{ await sb.from('boggl_shared').delete().eq('id', m._sid); showToast("공유를 취소했어요."); renderPantryShared(); }
       catch(e){ console.warn(e); alert("공유 취소에 실패했어요."); }
+    };
+    const ad=card.querySelector('[data-act="admindel"]'); if(ad) ad.onclick=async()=>{
+      if(!confirm("[관리자] 이 공유 재료를 삭제할까요?")) return;
+      try{ const {error}=await sb.from('boggl_shared').delete().eq('id', m._sid); if(error){console.warn(error);alert("삭제 실패 (관리자 RLS 확인)");return;} showToast("삭제했어요."); renderPantryShared(); }
+      catch(e){ console.warn(e); alert("삭제에 실패했어요."); }
     };
   });
 }
@@ -2960,10 +2968,20 @@ async function renderAdmReview(){
 async function renderAdmUsers(){
   const el=$("#admUsersList"); el.innerHTML=`<div class="adm-empty">불러오는 중…</div>`;
   let rows=[];
-  try{ const {data,error}=await sb.from('boggl_store').select('user_id,nickname,email,points').order('points',{ascending:false}); if(error)console.warn(error); else rows=data||[]; }catch(e){ console.warn(e); }
-  if(!rows.length){ el.innerHTML=`<div class="adm-empty">가입자가 없어요. (또는 관리자 RLS 설정이 필요해요)</div>`; return; }
+  let err=null;
+  try{ const {data,error}=await sb.from('boggl_store').select('user_id,nickname,email,points,subscribed,created_at').order('created_at',{ascending:false}); if(error){console.warn(error);err=error;} else rows=data||[]; }catch(e){ console.warn(e); err=e; }
+  if(!rows.length){
+    el.innerHTML = err
+      ? `<div class="adm-empty">가입자 목록을 불러오지 못했어요.<br><span style="font-size:12px;color:var(--muted)">${escapeHtml(err.message||err.code||"관리자 RLS 정책(boggl_store SELECT)이 필요해요.")}</span></div>`
+      : `<div class="adm-empty">아직 가입자가 없어요.</div>`;
+    return;
+  }
+  const fmtDate=(s)=>{ if(!s) return "-"; const d=String(s).slice(0,10); return d; };
   el.innerHTML = `<div style="padding:8px 6px 12px;color:var(--muted);font-size:13px">총 <b style="color:var(--ink)">${rows.length}</b>명</div>` + rows.map(u=>`<div class="adm-row" data-uid="${u.user_id}">
-      <div class="ainfo"><b>${escapeHtml(u.nickname||"(닉네임 없음)")}</b><span>${escapeHtml(u.email||u.user_id)}</span></div>
+      <div class="ainfo">
+        <b>${escapeHtml(u.nickname||"(닉네임 없음)")} ${u.subscribed?'<span class="adm-badge" style="background:#22c55e;color:#fff;margin-left:4px">구독✓</span>':'<span class="adm-badge" style="margin-left:4px">미구독</span>'}</b>
+        <span>${escapeHtml(u.email||u.user_id)} · 가입 ${fmtDate(u.created_at)}</span>
+      </div>
       <span class="adm-badge">${(u.points||0).toLocaleString()} P</span>
       <div class="adm-pts">
         <input type="number" placeholder="±지급" data-amt />
