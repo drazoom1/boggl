@@ -3008,7 +3008,7 @@ async function renderAdmRejoin(){
   const el=$("#admRejoinList"); el.innerHTML=`<div class="adm-empty">불러오는 중…</div>`;
   let rows=[], err=null;
   try{ const {data,error}=await sb.from('boggl_blocked').select('email,status,created_at').order('created_at',{ascending:false}); if(error){console.warn(error);err=error;} else rows=data||[]; }catch(e){ console.warn(e); err=e; }
-  const pending = rows.filter(r=>(r.status||"pending")!=="approved");
+  const pending = rows.filter(r=>(r.status||"pending")==="pending");
   if(!pending.length){
     el.innerHTML = err
       ? `<div class="adm-empty">목록을 불러오지 못했어요.<br><span style="font-size:12px;color:var(--muted)">${escapeHtml(err.message||err.code||"boggl_blocked 테이블/RLS SQL이 필요해요.")}</span></div>`
@@ -3353,14 +3353,24 @@ function renderYtStatus(){
   el.onclick = ()=>{ if(ok) showToast("이미 구독 인증됨"); else startYouTubeAuth(); };
 }
 async function clearSession(){ try{ await sb.auth.signOut(); }catch(e){} LS.set("nembi_auth",null); sbUserId=null; location.reload(); }
-/* 재가입 차단 여부: 탈퇴 이력 있고 아직 승인 안 됨 */
-async function isReJoinBlocked(email){
-  if(!email) return false;
+/* 재가입 상태: null(이력없음) | 'pending'(승인대기·차단) | 'approved'(승인됨·초기화 필요) | 'rejoined'(재가입 완료·일반) */
+async function getRejoinStatus(email){
+  if(!email) return null;
   try{
     const { data, error } = await sb.from('boggl_blocked').select('status').eq('email', email.toLowerCase()).maybeSingle();
-    if(error){ console.warn("재가입 확인 실패", error); return false; }  // 확인 불가 시 통과(정상 사용자 차단 방지)
-    return !!(data && (data.status||"pending")!=="approved");
-  }catch(e){ console.warn(e); return false; }
+    if(error){ console.warn("재가입 확인 실패", error); return null; }  // 확인 불가 시 통과(정상 사용자 차단 방지)
+    return data ? (data.status||"pending") : null;
+  }catch(e){ console.warn(e); return null; }
+}
+/* 승인된 재가입: 이전 이력(포인트·보너스·구독·레시피)을 깨끗이 초기화하고 승인 1회 소비 */
+async function resetForRejoin(email){
+  recipes=[]; memos=[]; points=1000; subBonus=false; subscribed=false; nickname=""; avatarImg="";
+  ["nembi_recipes","nembi_memos","nembi_subbonus","nembi_subscribed","nembi_nick","nembi_avatar"].forEach(k=>localStorage.removeItem(k));
+  LS.set("nembi_points",1000);
+  // 같은 user_id의 옛 행을 신규 가입 상태로 덮어쓰기(이전 포인트 이력 제거)
+  try{ const {error}=await sb.from('boggl_store').upsert({ user_id:sbUserId, recipes:[], materials:[], points:1000, sub_bonus:false, subscribed:false, nickname:null, avatar:null }); if(error) console.warn("재가입 초기화 저장 실패", error); }catch(e){ console.warn(e); }
+  // 승인 소비 → 다음 로그인부터는 일반 취급. 이후 다시 탈퇴하면 pending 재기록되어 또 승인 필요
+  try{ await sb.from('boggl_blocked').update({status:'rejoined'}).eq('email', email.toLowerCase()); }catch(e){ console.warn(e); }
 }
 /* 회원 탈퇴: 내 모든 데이터 삭제 + 로그아웃 */
 async function deleteAccount(){
@@ -3438,13 +3448,14 @@ sb.auth.onAuthStateChange(async (event, session)=>{
     applySupabaseSession(session);
     // 재가입 차단: 탈퇴 이력이 있고 아직 승인 안 된 계정은 막음(관리자 제외)
     if(!isAdmin()){
-      const blocked = await isReJoinBlocked(session.user.email);
-      if(blocked){
+      const rj = await getRejoinStatus(session.user.email);
+      if(rj==="pending"){
         alert("이 구글 계정은 탈퇴 이력이 있어, 재가입에 관리자 승인이 필요합니다.\n\n승인되면 다시 로그인해주세요.\n문의: honjobs@naver.com");
         try{ await sb.auth.signOut(); }catch(e){}
         LS.set("nembi_auth",null); sbUserId=null; renderAvatar();
         return;
       }
+      if(rj==="approved"){ await resetForRejoin(session.user.email); }  // 승인된 재가입 → 이전 이력 초기화
     }
     // youtube 권한을 방금 받은 경우(구독 인증 단계)에만 구독 확인
     const pending = sessionStorage.getItem("boggl_yt_pending");
