@@ -2384,13 +2384,50 @@ $("#shareModal").onclick=(e)=>{ if(e.target===$("#shareModal")) $("#shareModal")
 $("#shareLib").onclick=()=>{ $("#shareModal").classList.remove("open"); publishToLibrary(_shareItem,_shareKind); };
 $("#shareLink").onclick=()=>{ $("#shareModal").classList.remove("open"); shareLink(_shareItem,_shareKind); };
 
-/* 링크/텍스트로 공유 (기기 공유 시트 또는 복사) */
+/* base64(UTF-8) 인코딩/디코딩 */
+function b64e(str){ return btoa(unescape(encodeURIComponent(str))); }
+function b64d(str){ return decodeURIComponent(escape(atob(str))); }
+/* 항목을 담은 공유 링크 생성 */
+function buildShareUrl(item, kind){
+  let d;
+  if(kind==="material"){
+    d = { cat:item.cat||"기타", type:item.type||"memo", title:item.title, body:item.body||"", demo:item.demo||"", elem:item.elem||"", label:item.label||"", featIc:item.featIc||"", guide:item.guide||"" };
+  } else {
+    d = { name:item.name, meta:item.meta||"", text:item.text, manual:item.manual||"", type:item.type||"", sample:item.sample||"" };
+  }
+  const code = b64e(JSON.stringify({ k:kind, d }));
+  return "https://bboggl.com/#s=" + code;
+}
+/* 링크로 공유 → 링크를 클립보드에 복사(또는 기기 공유 시트) */
 function shareLink(item, kind){
   const title = item.name || item.title || "Bboggl";
-  const body = kind==="material" ? (item.body||matGuide(item)||"") : (item.text||"");
-  const text = `${title}\n\n${body}\n\n— Bboggl에서 만든 ${kind==="material"?"재료":"레시피"} · https://bboggl.com`;
-  if(navigator.share){ navigator.share({ title, text }).catch(()=>{}); }
-  else { navigator.clipboard.writeText(text).then(()=>showToast("내용을 복사했어요 — 붙여넣어 공유하세요!")); }
+  let url;
+  try{ url = buildShareUrl(item, kind); }
+  catch(e){ console.warn(e); alert("링크를 만드는 중 오류가 났어요."); return; }
+  const doCopy = ()=> navigator.clipboard.writeText(url)
+    .then(()=>showToast("링크를 복사했어요! 붙여넣어 공유하세요 🔗"))
+    .catch(()=>prompt("아래 링크를 복사해서 공유하세요:", url));
+  if(navigator.share){
+    navigator.share({ title:`${title} — Bboggl`, url }).catch(()=>doCopy());
+  } else doCopy();
+}
+/* 공유 링크로 진입했을 때(#s=...) 보관함에 담기 제안 */
+function handleShareLink(){
+  const m = (location.hash||"").match(/[#&]s=([^&]+)/);
+  if(!m) return;
+  let obj;
+  try{ obj = JSON.parse(b64d(decodeURIComponent(m[1]))); }
+  catch(e){ console.warn("공유 링크 해석 실패", e); return; }
+  // 해시 제거(새로고침/공유 반복 방지)
+  history.replaceState(null, "", location.pathname + location.search);
+  if(!obj || !obj.d) return;
+  const kind = obj.k==="material" ? "material" : "recipe";
+  const d = obj.d;
+  const name = kind==="material" ? (d.title||"재료") : (d.name||"레시피");
+  if(!confirm(`공유받은 ${kind==="material"?"재료":"레시피"} '${name}'을(를) 내 보관함에 담을까요?`)) return;
+  if(typeof requireLogin==="function" && !requireLogin()) return;
+  if(kind==="material") addSharedMaterialToMine(d);
+  else addSharedRecipeToMine(d);
 }
 /* 공유 보관함에 올리기 (검수 후 등록) */
 async function publishToLibrary(item, kind){
@@ -3375,6 +3412,7 @@ $("#gateModal").onclick=(e)=>{ if(e.target===$("#gateModal")) $("#gateModal").cl
 /* ================= INIT ================= */
 renderMemoPickers();
 updateHint();
+handleShareLink();   // 공유 링크(#s=...)로 들어온 경우 보관함에 담기 제안
 </script>
 </body>
 </html>
