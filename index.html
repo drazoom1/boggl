@@ -3275,7 +3275,12 @@ async function checkYouTube(token){
     // 멤버십: 뷰어 측 조회 API 없음 → MEMBERSHIP_ENABLED + 소유자 서버가 있을 때만 채워짐
   }catch(e){ yt.error = String((e&&e.message)||e); console.warn("YouTube 확인 실패", e); }
   mergeSession({ yt });
-  if(!yt.error){ subscribed = !!yt.subscribed; LS.set("nembi_subscribed", subscribed); cloudSync(); }  // 구독 상태 계정 저장
+  if(!yt.error){
+    subscribed = !!yt.subscribed; LS.set("nembi_subscribed", subscribed);
+    // 구독 상태를 즉시(디바운스 없이) 계정에 저장 → 새로고침/다른 기기에서도 유지
+    if(sbUserId){ try{ const {error}=await sb.from('boggl_store').upsert({ user_id:sbUserId, subscribed:subscribed }); if(error) console.warn("구독상태 저장 실패", error); }catch(e){ console.warn(e); } }
+    cloudSync();
+  }
   renderYtStatus();
   return yt;
 }
@@ -3378,12 +3383,13 @@ authGate.classList.remove("show");
 renderAvatar();
 
 /* Supabase 인증 상태 → 로컬 미러 + 데이터 동기화 + 구독 확인 */
-sb.auth.onAuthStateChange((event, session)=>{
+sb.auth.onAuthStateChange(async (event, session)=>{
   if(session && session.user){
     applySupabaseSession(session);
-    hydrateCloud();
     // youtube 권한을 방금 받은 경우(구독 인증 단계)에만 구독 확인
     const pending = sessionStorage.getItem("boggl_yt_pending");
+    // 먼저 클라우드 데이터를 불러온 뒤(구독 상태 클로버 방지) 구독 확인을 진행
+    await hydrateCloud();
     if(pending){
       sessionStorage.removeItem("boggl_yt_pending");
       if(session.provider_token){
