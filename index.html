@@ -297,6 +297,12 @@
   .am-user span{font-size:12px;color:var(--muted);word-break:break-all}
   .am-btn{width:100%;justify-content:center}
   .am-del{display:block;width:100%;background:none;border:none;color:var(--muted);font-family:inherit;font-size:11.5px;cursor:pointer;padding:8px 0 2px;margin-top:2px}
+  /* 프로필 이미지 설정 */
+  .nick-av-wrap{display:flex;flex-direction:column;align-items:center;gap:10px;margin:4px 0 16px}
+  .nick-av{width:86px;height:86px;border-radius:50%;background:#eef0f2;display:grid;place-items:center;font-size:32px;font-weight:800;color:#9aa0a8;overflow:hidden;background-size:cover;background-position:center}
+  .nick-av-btns{display:flex;gap:8px}
+  .nick-av-btns .btn{padding:7px 13px;font-size:12.5px}
+  #nickAvClear{border:none;color:var(--muted)}
   .am-del:hover{color:#d8513a;text-decoration:underline}
   /* 유튜브 구독/멤버십 상태 칩 */
   .yt-status{display:flex;align-items:center;gap:8px;padding:5px 12px 5px 9px;border-radius:999px;font-size:12px;flex-shrink:0}
@@ -562,10 +568,18 @@
 
 <!-- 닉네임 설정/수정 모달 -->
 <div class="modal-back" id="nickModal">
-  <div class="modal" style="max-width:380px">
-    <div class="modal-title" id="nickTitle">닉네임 설정</div>
-    <p id="nickDesc" style="color:var(--muted);font-size:13.5px;line-height:1.55;margin:6px 0 16px">Bboggl에서 사용할 닉네임을 정해주세요. 나중에 마이페이지에서 바꿀 수 있어요.</p>
-    <div class="modal-field"><input type="text" id="nickInput" maxlength="20" placeholder="닉네임 (최대 20자)" /></div>
+  <div class="modal" style="max-width:380px;text-align:center">
+    <div class="modal-title" id="nickTitle">프로필 설정</div>
+    <p id="nickDesc" style="color:var(--muted);font-size:13.5px;line-height:1.55;margin:6px 0 14px">Bboggl에서 사용할 닉네임과 프로필 이미지를 정해주세요.</p>
+    <div class="nick-av-wrap">
+      <div class="nick-av" id="nickAv"></div>
+      <div class="nick-av-btns">
+        <button class="btn" id="nickPick">이미지 변경</button>
+        <button class="btn" id="nickAvClear">기본으로</button>
+      </div>
+      <input type="file" id="nickFile" accept="image/*" hidden>
+    </div>
+    <div class="modal-field" style="text-align:left"><input type="text" id="nickInput" maxlength="20" placeholder="닉네임 (최대 20자)" /></div>
     <div class="modal-actions">
       <button class="btn" id="nickCancel">취소</button>
       <button class="btn primary" id="nickSave">저장</button>
@@ -912,6 +926,7 @@ let points      = LS.get("nembi_points", 1000);   // 가입 기본 1000
 let subBonus    = LS.get("nembi_subbonus", false); // 구독 보너스(3000) 지급 여부
 let nickname    = LS.get("nembi_nick", "");        // 사용자 닉네임
 let subscribed  = LS.get("nembi_subscribed", false); // 구독 인증 상태(계정 저장 → 재인증 불필요)
+let avatarImg   = LS.get("nembi_avatar", "");      // 사용자 프로필 이미지(data URL)
 let submissions = LS.get("nembi_submissions", []);   // 검수 요청한 레시피
 function isHTMLCode(c){ return /<(!doctype|html|body|div|section|header|main|style)\b/i.test(c||""); }
 function previewDoc(s){
@@ -2971,9 +2986,10 @@ function renderAvatar(){
   if(s && s.user){
     if(lb) lb.style.display="none";
     if(wrap) wrap.style.display="";
-    if(s.user.picture){ av.style.backgroundImage=`url(${s.user.picture})`; av.style.backgroundSize="cover"; av.style.backgroundPosition="center"; av.textContent=""; }
-    else { av.style.backgroundImage=""; av.textContent=(s.user.name||"U").slice(0,1); }
-    av.title=(s.user.name||"")+" · 클릭하면 메뉴";
+    const img = avatarImg || s.user.picture || "";
+    if(img){ av.style.backgroundImage=`url(${img})`; av.style.backgroundSize="cover"; av.style.backgroundPosition="center"; av.textContent=""; }
+    else { av.style.backgroundImage=""; av.textContent=(nickname||s.user.name||"U").slice(0,1); }
+    av.title=(nickname||s.user.name||"")+" · 클릭하면 메뉴";
   } else {
     if(lb) lb.style.display="";
     if(wrap) wrap.style.display="none";
@@ -2997,7 +3013,7 @@ function applySupabaseSession(session){
 async function hydrateCloud(){
   if(!sbUserId) return;
   try{
-    const { data, error } = await sb.from('boggl_store').select('recipes,materials,points,sub_bonus,nickname,subscribed').eq('user_id',sbUserId).maybeSingle();
+    const { data, error } = await sb.from('boggl_store').select('recipes,materials,points,sub_bonus,nickname,subscribed,avatar').eq('user_id',sbUserId).maybeSingle();
     if(error){ console.warn("불러오기 실패", error); maybePromptNickname(); return; }
     if(data){
       if(Array.isArray(data.recipes)){ recipes=data.recipes; LS.set("nembi_recipes",recipes); }
@@ -3006,7 +3022,8 @@ async function hydrateCloud(){
       if(typeof data.sub_bonus==="boolean"){ subBonus=data.sub_bonus; LS.set("nembi_subbonus",subBonus); }
       if(typeof data.nickname==="string"){ nickname=data.nickname; LS.set("nembi_nick",nickname); }
       if(typeof data.subscribed==="boolean"){ subscribed=data.subscribed; LS.set("nembi_subscribed",subscribed); }
-      renderPoints(); renderYtStatus();
+      if(typeof data.avatar==="string"){ avatarImg=data.avatar; LS.set("nembi_avatar",avatarImg); }
+      renderPoints(); renderYtStatus(); renderAvatar();
       try{renderRecipes();}catch(e){} try{renderPantry();}catch(e){} try{renderMemoPickers();}catch(e){} try{updateHint();}catch(e){}
     } else { renderPoints(); }   // 신규 사용자: 기본 1000 표시
     maybePromptNickname();   // 닉네임 없으면 최초 설정 창
@@ -3019,7 +3036,7 @@ function cloudSync(){
   clearTimeout(_syncT);
   _syncT=setTimeout(()=>{
     const em=(getSession()&&getSession().user&&getSession().user.email)||null;
-    sb.from('boggl_store').upsert({ user_id:sbUserId, recipes:recipes, materials:memos, points:points, sub_bonus:subBonus, nickname:nickname, email:em, subscribed:subscribed })
+    sb.from('boggl_store').upsert({ user_id:sbUserId, recipes:recipes, materials:memos, points:points, sub_bonus:subBonus, nickname:nickname, email:em, subscribed:subscribed, avatar:avatarImg })
       .then(({error})=>{ if(error) console.warn("저장 실패", error); });
   },600);
 }
@@ -3063,32 +3080,58 @@ function changePoints(delta){
 function deductPoints(n){ changePoints(-Math.abs(n)); }
 function addPoints(n){ changePoints(Math.abs(n)); }
 
-/* ===== 닉네임 ===== */
+/* ===== 닉네임 + 프로필 이미지 ===== */
 let nickFirst=false;
+let _pendingAvatar=null;   // null=변경없음, ""=기본으로, dataURL=새 이미지
 function maybePromptNickname(){ if(getSession() && !nickname) openNicknameModal(true); }
+function renderNickAv(){
+  const el=$("#nickAv"); if(!el) return; const s=getSession();
+  const cur = (_pendingAvatar!==null) ? _pendingAvatar : avatarImg;
+  const img = cur || (s&&s.user&&s.user.picture) || "";
+  if(img){ el.style.backgroundImage=`url(${img})`; el.textContent=""; }
+  else { el.style.backgroundImage=""; el.textContent=(($("#nickInput").value||nickname||(s&&s.user&&s.user.name)||"U")).slice(0,1); }
+}
 function openNicknameModal(first){
   const s=getSession(); if(!s) return;
-  nickFirst=!!first;
-  $("#nickTitle").textContent = first ? "닉네임을 정해주세요 🎉" : "닉네임 수정";
+  nickFirst=!!first; _pendingAvatar=null;
+  $("#nickTitle").textContent = first ? "프로필을 설정해주세요 🎉" : "프로필 수정";
   $("#nickDesc").style.display = first ? "" : "none";
   $("#nickInput").value = nickname || s.user.name || "";
   $("#nickCancel").style.display = first ? "none" : "";
+  renderNickAv();
   $("#nickModal").classList.add("open");
   setTimeout(()=>{ const i=$("#nickInput"); i.focus(); i.select(); },50);
+}
+function fileToAvatar(file, cb){
+  if(file.size > 8*1024*1024){ alert("이미지가 너무 커요 (8MB 이하)"); return; }
+  const r=new FileReader();
+  r.onload=()=>{ const img=new Image(); img.onload=()=>{
+    const sz=160, c=document.createElement("canvas"); c.width=sz; c.height=sz;
+    const ctx=c.getContext("2d"); const scale=Math.max(sz/img.width, sz/img.height);
+    const w=img.width*scale, h=img.height*scale;
+    ctx.drawImage(img,(sz-w)/2,(sz-h)/2,w,h);
+    cb(c.toDataURL("image/jpeg",0.82));
+  }; img.onerror=()=>alert("이미지를 읽지 못했어요."); img.src=r.result; };
+  r.readAsDataURL(file);
 }
 function saveNickname(){
   const v=$("#nickInput").value.trim();
   if(!v){ alert("닉네임을 입력해주세요."); return; }
   nickname=v; LS.set("nembi_nick", nickname);
+  if(_pendingAvatar!==null){ avatarImg=_pendingAvatar; LS.set("nembi_avatar", avatarImg); }
   cloudSync();
   $("#nickModal").classList.remove("open");
-  renderAvatarMenu();
-  showToast("닉네임이 저장됐어요!");
+  renderAvatar(); renderAvatarMenu();
+  showToast("프로필이 저장됐어요!");
 }
 $("#nickSave").onclick=saveNickname;
 $("#nickCancel").onclick=()=>$("#nickModal").classList.remove("open");
 $("#nickModal").onclick=(e)=>{ if(e.target===$("#nickModal") && !nickFirst) $("#nickModal").classList.remove("open"); };
 $("#nickInput").addEventListener("keydown",e=>{ if(e.key==="Enter") saveNickname(); });
+$("#nickInput").addEventListener("input", renderNickAv);
+$("#nickPick").onclick=()=>$("#nickFile").click();
+$("#nickAvClear").onclick=()=>{ _pendingAvatar=""; renderNickAv(); };
+$("#nickFile").onchange=(e)=>{ const f=e.target.files[0]; if(f) fileToAvatar(f, url=>{ _pendingAvatar=url; renderNickAv(); }); e.target.value=""; };
 
 /* ===== 유튜브 구독 / 멤버십 확인 ===== */
 function ytFetch(path, token){
@@ -3150,7 +3193,7 @@ async function deleteAccount(){
       await sb.from('boggl_store').delete().eq('user_id', sbUserId);
     }
   }catch(e){ console.warn("데이터 삭제 실패", e); }
-  ["nembi_auth","nembi_recipes","nembi_memos","nembi_points","nembi_subbonus","nembi_nick","nembi_subscribed","nembi_bases","nembi_submissions"].forEach(k=>localStorage.removeItem(k));
+  ["nembi_auth","nembi_recipes","nembi_memos","nembi_points","nembi_subbonus","nembi_nick","nembi_subscribed","nembi_avatar","nembi_bases","nembi_submissions"].forEach(k=>localStorage.removeItem(k));
   try{ await sb.auth.signOut(); }catch(e){}
   alert("탈퇴가 완료됐어요. 그동안 이용해주셔서 감사합니다.");
   location.href = location.origin + location.pathname;
@@ -3181,7 +3224,7 @@ function renderAvatarMenu(){
   if(s && s.user){
     const display = nickname || s.user.name || "사용자";
     avatarMenu.innerHTML = `<div class="am-user"><b>${escapeHtml(display)}</b><span>${escapeHtml(s.user.email||"")}</span></div>
-      <button class="btn am-btn" id="amNick">닉네임 수정</button>
+      <button class="btn am-btn" id="amNick">프로필 수정</button>
       <button class="btn am-btn" id="amLogout">로그아웃</button>
       <button class="am-del" id="amDelete">회원 탈퇴</button>`;
     $("#amNick").onclick=()=>{ avatarMenu.hidden=true; openNicknameModal(false); };
