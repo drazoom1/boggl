@@ -53,6 +53,15 @@
   .hamb{background:none;border:none;cursor:pointer;padding:7px;border-radius:9px;display:grid;place-items:center;flex-shrink:0;margin-left:-4px;margin-right:-16px}
   .hamb:hover{background:var(--field)}
   .hamb svg{width:23px;height:23px;fill:none;stroke:var(--ink);stroke-width:1.8;stroke-linecap:round}
+  /* 좁은 화면용 카테고리 바 (기본 숨김 → 좁아지면 표시) */
+  .catbar{display:none;gap:4px;align-items:center;background:var(--black);
+    padding:9px 16px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .catbar::-webkit-scrollbar{display:none}
+  .catbar .tab{color:rgba(255,255,255,.66);font-size:14px;font-weight:600;padding:7px 13px;border-radius:9px;flex-shrink:0}
+  .catbar .tab:hover{color:#fff}
+  .catbar .tab.active{color:var(--black);background:#fff}
+  .yt-status.compact .yt-txt{display:flex;align-items:center}
+  .bar-sp{display:none}
 
   /* DRAWER (재료 바구니) */
   .backdrop{position:fixed;inset:0;background:rgba(20,20,22,.4);opacity:0;visibility:hidden;transition:.25s;z-index:55}
@@ -504,14 +513,19 @@
   .adm-pts input{width:84px;padding:8px 10px;border:1px solid var(--line);border-radius:9px;font-family:inherit;font-size:13px;outline:none}
   .adm-empty{padding:36px;text-align:center;color:var(--muted);font-size:14px}
 
+  /* 상단이 좁아져 넘칠 때: 탭을 헤더에서 빼고 별도 카테고리 바로 분리 */
+  @media(max-width:920px){
+    header.bar nav.tabs{display:none}
+    .catbar{display:flex}
+    .bar-sp{display:block;flex:1}
+  }
   @media(max-width:760px){
     .wrap,.bar-in{padding-left:14px;padding-right:14px}
     .bar-in{gap:10px}
     .brand .logo{font-size:22px}
     .hamb{margin-right:-10px}
-    nav.tabs{display:flex;gap:2px;flex:1;min-width:0;overflow-x:auto;-webkit-overflow-scrolling:touch}
-    nav.tabs::-webkit-scrollbar{display:none}
-    .tab{padding:7px 8px;font-size:13px;white-space:nowrap}
+    .catbar{padding:8px 14px}
+    .catbar .tab{font-size:13px;padding:7px 11px}
     .search{display:none}
     .avatar{display:none}
     .feat-grid{grid-template-columns:1fr}
@@ -667,8 +681,9 @@
       <span class="tab active" data-page="build">레시피 만들기</span>
       <span class="tab" data-page="recipes">레시피 보관함</span>
       <span class="tab" data-page="pantry">재료 보관함</span>
-      <span class="tab" data-page="admin" id="adminTab" style="display:none">🔧 관리자</span>
+      <span class="tab js-admin-tab" data-page="admin" style="display:none">🔧 관리자</span>
     </nav>
+    <div class="bar-sp"></div>
     <div class="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg><input type="text" placeholder="레시피 검색" /></div>
     <div class="yt-status" id="ytStatus" style="display:none">
       <svg viewBox="0 0 24 24"><path d="M5 7.5l-1.4 4.5L5 16.5a2 2 0 0 0 1.4 1.4c1.6.4 5.6.6 5.6.6s4 0 5.6-.6A2 2 0 0 0 19 16.5l1.4-4.5L19 7.5a2 2 0 0 0-1.4-1.4C16 5.7 12 5.5 12 5.5s-4 0-5.6.6A2 2 0 0 0 5 7.5z"/><path d="M10.4 9.8l4 2.2-4 2.2z"/></svg>
@@ -686,6 +701,14 @@
     </div>
   </div>
 </header>
+
+<!-- 좁은 화면용 카테고리(메뉴) 바 — 상단이 넘칠 때 탭을 여기로 분리 -->
+<nav class="catbar" id="catbar">
+  <span class="tab active" data-page="build">레시피 만들기</span>
+  <span class="tab" data-page="recipes">레시피 보관함</span>
+  <span class="tab" data-page="pantry">재료 보관함</span>
+  <span class="tab js-admin-tab" data-page="admin" style="display:none">🔧 관리자</span>
+</nav>
 
 <div class="wrap">
 
@@ -3127,7 +3150,7 @@ let sbUserId = null;
 const ADMIN_EMAIL = "drazoom@naver.com";
 /* ▲▲▲ 이 계정으로 로그인하면 관리자 페이지가 보입니다 (Supabase RLS도 같은 이메일로 설정) ▲▲▲ */
 function isAdmin(){ const s=getSession(); return !!(s && s.user && s.user.email && ADMIN_EMAIL && s.user.email.toLowerCase()===ADMIN_EMAIL.toLowerCase()); }
-function updateAdminTab(){ const t=$("#adminTab"); if(t) t.style.display = isAdmin() ? "" : "none"; }
+function updateAdminTab(){ document.querySelectorAll(".js-admin-tab").forEach(t=>{ t.style.display = isAdmin() ? "" : "none"; }); }
 
 const authGate=$("#authGate");
 
@@ -3345,12 +3368,13 @@ function renderYtStatus(){
   }
   const ok = MEMBERSHIP_ENABLED ? !!((ytStatus()||{}).member) : subscribed;
   let label, sub;
-  if(ok){ label = MEMBERSHIP_ENABLED ? "멤버십 인증됨" : "구독 인증됨"; sub="프리미엄 기능 사용 가능"; }
+  if(ok){ label = "구독완료"; sub=""; }                       // 인증된 경우: '구독완료'만 표시
   else { label = "구독 인증 필요"; sub="눌러서 구독 인증하기"; }
-  el.className = "yt-status "+(ok?"ok":"no");
+  el.className = "yt-status "+(ok?"ok":"no")+(ok?" compact":"");
   el.querySelector(".yt-label").textContent = label;
   el.querySelector(".yt-sub").textContent = sub;
-  el.onclick = ()=>{ if(ok) showToast("이미 구독 인증됨"); else startYouTubeAuth(); };
+  el.querySelector(".yt-sub").style.display = sub ? "" : "none";
+  el.onclick = ()=>{ if(ok) showToast("구독완료 상태예요"); else startYouTubeAuth(); };
 }
 async function clearSession(){ try{ await sb.auth.signOut(); }catch(e){} LS.set("nembi_auth",null); sbUserId=null; location.reload(); }
 /* 재가입 상태: null(이력없음) | 'pending'(승인대기·차단) | 'approved'(승인됨·초기화 필요) | 'rejoined'(재가입 완료·일반) */
