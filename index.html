@@ -145,6 +145,21 @@
   .rrow.sel .rpill{background:var(--ink);color:#fff;border-color:var(--ink)}
   .rsample{flex-shrink:0;background:none;border:none;color:var(--muted);font-family:inherit;font-weight:600;font-size:12.5px;cursor:pointer;padding:8px 10px;border-radius:8px;text-decoration:underline;text-underline-offset:2px}
   .rsample:hover{color:var(--ink)}
+  .rdel{flex-shrink:0;background:none;border:none;color:var(--muted);font-size:16px;line-height:1;cursor:pointer;padding:6px 8px;border-radius:8px}
+  .rdel:hover{color:#d8513a;background:var(--field)}
+  .benchtag{display:inline-block;font-size:10.5px;font-weight:800;color:#2563EB;background:#eaf1ff;border-radius:6px;padding:1px 6px;margin-left:6px;vertical-align:1.5px}
+  /* 벤치마킹 사이트 추가 박스 (베이스 맨 위 고정) */
+  .benchbox{background:linear-gradient(180deg,#f7f9ff,#fff);border:1.5px solid #dfe7fb;border-radius:14px;padding:13px 15px;margin-bottom:14px;position:sticky;top:8px;z-index:5}
+  .benchbox-head{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+  .benchbox-head svg{width:18px;height:18px;fill:none;stroke:#2563EB;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+  .benchbox-head b{font-size:14.5px;letter-spacing:-.3px}
+  .benchbox-head span{font-size:12px;color:var(--muted)}
+  .benchbox-row{display:flex;gap:8px;flex-wrap:wrap}
+  .benchbox-row input{flex:1;min-width:0;border:1px solid var(--line);border-radius:9px;padding:10px 12px;font-family:inherit;font-size:13.5px;color:var(--ink);background:#fff;outline:none}
+  .benchbox-row input#benchName{flex:0 0 130px;min-width:90px}
+  .benchbox-row input:focus{border-color:#2563EB}
+  .benchbox-row .btn{flex-shrink:0}
+  @media(max-width:560px){ .benchbox-row input#benchName{flex:1 1 100%} .benchbox{position:static} }
   @media(max-width:560px){
     .rrow{flex-wrap:wrap;gap:9px 10px;padding:13px 6px}
     .rno{order:1;width:16px;font-size:15px}
@@ -725,7 +740,21 @@
       <button data-mode="new" class="on">새로운 레시피</button>
       <button data-mode="supplement">기존 레시피 보완</button>
     </div>
-    <div class="panel" id="basePanel"><div id="rankList"></div></div>
+    <div class="panel" id="basePanel">
+      <div class="benchbox">
+        <div class="benchbox-head">
+          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/><path d="M11 8v6M8 11h6"/></svg>
+          <b>벤치마킹 사이트</b>
+          <span>원하는 사이트 링크를 올리면 베이스로 추가돼요</span>
+        </div>
+        <div class="benchbox-row">
+          <input id="benchUrl" type="url" placeholder="https://example.com — 벤치마킹할 사이트 주소" />
+          <input id="benchName" type="text" placeholder="이름(선택)" />
+          <button class="btn primary" id="benchAdd">추가</button>
+        </div>
+      </div>
+      <div id="rankList"></div>
+    </div>
     <div class="panel" id="suppPanel" style="display:none">
       <div class="sec-note" style="margin:2px 2px 12px">보완할 <b style="color:var(--ink)">내 저장 레시피</b>를 하나 골라요. 아래 UI·기능을 더하면 <b style="color:var(--ink)">기존 프롬프트는 그대로 유지</b>한 채 추가분만 이어 붙여 드려요.</div>
       <div id="suppList"></div>
@@ -1958,7 +1987,8 @@ function renderFilterBar(barId, types, current, onPick){
 /* ================= BASE LIST (단일 선택) ================= */
 const rankList = $("#rankList");
 let importedBases = LS.get("nembi_bases", []);   // 공유 레시피에서 담은 베이스
-function allBases(){ return RANKS.concat(importedBases); }
+let benchBases = LS.get("nembi_bench", []);      // 벤치마킹 사이트로 추가한 베이스
+function allBases(){ return benchBases.concat(RANKS, importedBases); }
 function renderRankList(){
   rankList.innerHTML="";
   allBases().forEach((r,i)=>{
@@ -1966,10 +1996,16 @@ function renderRankList(){
     if(state.base && state.base.name===r.name) el.classList.add("sel");
     el.innerHTML=`<div class="rno">${i+1}</div>
       <div class="rtile" style="background:${r.c};color:${r.tx||'#fff'}">${r.t}</div>
-      <div class="rbody"><b>${r.name}</b><span>${r.desc||""}</span></div>
-      <button class="rsample">샘플보기</button>
+      <div class="rbody"><b>${escapeHtml(r.name)}${r.bench?'<span class="benchtag">벤치마킹</span>':''}</b><span>${escapeHtml(r.desc||"")}</span></div>
+      <button class="rsample">${r.bench?"사이트 열기":"샘플보기"}</button>
+      ${r.bench?'<button class="rdel" title="삭제">✕</button>':''}
       <button class="rpill">${state.base&&state.base.name===r.name?"베이스 ✓":"베이스로"}</button>`;
-    el.querySelector(".rsample").onclick=(e)=>{ e.stopPropagation(); openSample(r); };
+    el.querySelector(".rsample").onclick=(e)=>{ e.stopPropagation(); if(r.bench) window.open(r.url,"_blank","noopener"); else openSample(r); };
+    const del=el.querySelector(".rdel");
+    if(del) del.onclick=(e)=>{ e.stopPropagation(); if(!confirm("이 벤치마킹 베이스를 삭제할까요?")) return;
+      benchBases=benchBases.filter(b=>b.name!==r.name); LS.set("nembi_bench", benchBases);
+      if(state.base && state.base.name===r.name) state.base=null;
+      renderRankList(); updateHint(); };
     el.onclick=()=>{
       const wasSel=el.classList.contains("sel");
       rankList.querySelectorAll(".rrow").forEach(x=>{ x.classList.remove("sel"); x.querySelector(".rpill").textContent="베이스로"; });
@@ -1984,6 +2020,31 @@ function renderRankList(){
   });
 }
 renderRankList();
+
+/* ===== 벤치마킹 사이트 → 베이스로 추가 ===== */
+function addBenchBase(){
+  let url=$("#benchUrl").value.trim();
+  if(!url){ alert("벤치마킹할 사이트 링크를 입력해주세요."); return; }
+  if(!/^https?:\/\//i.test(url)) url="https://"+url;
+  let host;
+  try{ host=new URL(url).hostname.replace(/^www\./,""); }catch(e){ alert("올바른 링크 형식이 아니에요. 예: https://example.com"); return; }
+  const name=($("#benchName").value.trim()) || host;
+  if(allBases().some(b=>b.name===name)){ alert("같은 이름의 베이스가 이미 있어요. ‘이름(선택)’에 다른 이름을 적어주세요."); return; }
+  const palette=["#2563EB","#16A34A","#DB2777","#7C3AED","#EA580C","#0891B2","#DC2626"];
+  const c=palette[benchBases.length % palette.length];
+  const base={ name, desc:"벤치마킹 · "+host, c, t:(name.slice(0,1)||"B").toUpperCase(), bench:true, url,
+    frame:`벤치마킹 대상 사이트: ${url}\n이 사이트의 레이아웃·정보구조·디자인 톤·핵심 기능·UX 패턴을 벤치마킹해서, 같은 결의 더 완성도 높은 웹서비스를 만들어줘. (해당 사이트를 직접 크롤링하지 말고, 일반적으로 알려진 구조·디자인 패턴을 참고해서 우리 디자인 시스템에 맞게 재해석)`,
+    ui:Object.assign({}, NEUTRAL_BASE.ui), feats:[], sample:"" };
+  benchBases.unshift(base);
+  LS.set("nembi_bench", benchBases);
+  $("#benchUrl").value=""; $("#benchName").value="";
+  state.base=base;
+  renderRankList(); updateHint();
+  showToast("벤치마킹 베이스를 추가했어요!");
+}
+$("#benchAdd").onclick=addBenchBase;
+$("#benchUrl").addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); addBenchBase(); } });
+$("#benchName").addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); addBenchBase(); } });
 
 /* ===== 빌드 모드: 새로운 레시피 / 기존 레시피 보완 ===== */
 let buildMode="new";       // "new" | "supplement"
@@ -3544,7 +3605,7 @@ async function deleteAccount(){
       await sb.from('boggl_store').delete().eq('user_id', sbUserId);
     }
   }catch(e){ console.warn("데이터 삭제 실패", e); }
-  ["nembi_auth","nembi_recipes","nembi_memos","nembi_points","nembi_subbonus","nembi_nick","nembi_subscribed","nembi_avatar","nembi_bases","nembi_submissions"].forEach(k=>localStorage.removeItem(k));
+  ["nembi_auth","nembi_recipes","nembi_memos","nembi_points","nembi_subbonus","nembi_nick","nembi_subscribed","nembi_avatar","nembi_bases","nembi_bench","nembi_submissions"].forEach(k=>localStorage.removeItem(k));
   try{ await sb.auth.signOut(); }catch(e){}
   alert("탈퇴가 완료됐어요. 그동안 이용해주셔서 감사합니다.");
   location.href = location.origin + location.pathname;
