@@ -155,6 +155,7 @@
   .qa-q{font-size:15.5px;font-weight:800;letter-spacing:-.3px;margin:2px 2px 13px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;color:var(--ink)}
   .qa-opts{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   .qa-opts.three{grid-template-columns:repeat(3,1fr)}
+  .qa-opts.four{grid-template-columns:repeat(2,1fr)}
   .qa-opt{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;background:var(--panel);border:1.5px solid var(--line);border-radius:14px;padding:15px 16px;cursor:pointer;font-family:inherit;transition:.13s}
   .qa-opt:hover{border-color:var(--ink);background:#fff;transform:translateY(-1px);box-shadow:0 4px 14px rgba(0,0,0,.06)}
   .qa-opt b{font-size:14.5px;font-weight:800;letter-spacing:-.3px;color:var(--ink)}
@@ -164,7 +165,7 @@
   .qa-back{background:none;border:none;color:var(--muted);font-family:inherit;font-size:12.5px;font-weight:600;cursor:pointer;padding:4px 8px;border-radius:7px}
   .qa-back:hover{color:var(--ink);background:var(--field)}
   .qa-chosen{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--field);border-radius:10px;padding:9px 14px;margin-bottom:14px;font-size:13.5px;font-weight:700;color:var(--ink)}
-  @media(max-width:560px){ .qa-opts,.qa-opts.three{grid-template-columns:1fr} }
+  @media(max-width:560px){ .qa-opts,.qa-opts.three,.qa-opts.four{grid-template-columns:1fr} }
   /* 베이스 추가 박스 (링크 / 글로 작성) */
   .benchbox{background:linear-gradient(180deg,#f7f9ff,#fff);border:1.5px solid #dfe7fb;border-radius:14px;padding:13px 15px;margin-bottom:14px}
   .benchbox textarea{width:100%;border:1px solid var(--line);border-radius:9px;padding:11px 12px;font-family:inherit;font-size:13.5px;color:var(--ink);background:#fff;outline:none;resize:vertical;min-height:96px;line-height:1.6;margin-bottom:9px}
@@ -759,36 +760,25 @@
       <span class="sec-note">몇 가지만 답하면 베이스가 정해져요</span>
     </div>
     <div class="panel">
-      <!-- Q1: 무엇을 할까요 -->
+      <!-- 시작 질문: 4가지 중 선택 -->
       <div class="qa" id="qaMode">
-        <div class="qa-q">무엇을 하시겠어요?</div>
-        <div class="qa-opts">
-          <button class="qa-opt" data-mode="new">
-            <span class="qa-ic"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span>
-            <b>새로운 레시피 만들기</b><span class="qa-d">베이스부터 새로 골라 만들어요</span>
-          </button>
-          <button class="qa-opt" data-mode="supplement">
-            <span class="qa-ic"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h10M4 17h13"/></svg></span>
-            <b>기존 레시피 보완하기</b><span class="qa-d">저장한 레시피에 기능·UI를 더해요</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- Q2: 베이스를 어떻게 정할까요 (새로운 레시피) -->
-      <div class="qa" id="qaSrc" style="display:none">
-        <div class="qa-q">베이스를 어떻게 정할까요? <button class="qa-back" data-back="mode">← 처음으로</button></div>
-        <div class="qa-opts three">
-          <button class="qa-opt" data-src="link">
+        <div class="qa-q">어떻게 시작할까요?</div>
+        <div class="qa-opts four">
+          <button class="qa-opt" data-choice="link">
             <span class="qa-ic"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg></span>
-            <b>벤치마킹 링크로</b><span class="qa-d">참고할 사이트 주소로 등록</span>
+            <b>참고사이트</b><span class="qa-d">참고할 사이트 주소로 등록</span>
           </button>
-          <button class="qa-opt" data-src="list">
+          <button class="qa-opt" data-choice="list">
             <span class="qa-ic"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="4" rx="1"/><rect x="4" y="11" width="16" height="4" rx="1"/><rect x="4" y="17" width="16" height="2" rx="1"/></svg></span>
-            <b>기존 베이스에서</b><span class="qa-d">등록된 베이스 목록에서 선택</span>
+            <b>기존 베이스</b><span class="qa-d">등록된 베이스에서 선택</span>
           </button>
-          <button class="qa-opt" data-src="text">
+          <button class="qa-opt" data-choice="text">
             <span class="qa-ic"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h10M4 17h7"/></svg></span>
             <b>말로 설명하기</b><span class="qa-d">원하는 걸 직접 글로 작성</span>
+          </button>
+          <button class="qa-opt" data-choice="supplement">
+            <span class="qa-ic"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h10M4 17h13"/></svg></span>
+            <b>기존 레시피 수정</b><span class="qa-d">저장한 레시피에 기능·UI를 더해요</span>
           </button>
         </div>
       </div>
@@ -796,16 +786,16 @@
       <!-- 새로운 레시피: 선택한 입력 영역 -->
       <div id="basePanel" style="display:none">
         <div class="qa-chosen" id="baseChosen"></div>
-        <!-- 벤치마킹 링크 -->
+        <!-- 참고사이트 링크 -->
         <div id="srcLink" style="display:none">
           <div class="benchbox">
             <div class="benchbox-head">
               <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/><path d="M11 8v6M8 11h6"/></svg>
-              <b>벤치마킹 사이트</b>
-              <span>원하는 사이트 링크를 올리면 베이스로 추가돼요</span>
+              <b>참고사이트</b>
+              <span>참고할 사이트 링크를 올리면 베이스로 추가돼요</span>
             </div>
             <div class="benchbox-row">
-              <input id="benchUrl" type="url" placeholder="https://example.com — 벤치마킹할 사이트 주소" />
+              <input id="benchUrl" type="url" placeholder="https://example.com — 참고할 사이트 주소" />
               <input id="benchName" type="text" placeholder="이름(선택)" />
               <button class="btn primary" id="benchAdd">추가</button>
             </div>
@@ -2176,38 +2166,31 @@ function renderSuppList(){
     el.appendChild(row);
   });
 }
-/* ===== 시작하기 위저드 (Q&A) ===== */
+/* ===== 시작하기 위저드 (한 단계 · 4지선다) ===== */
 function renderBaseWizard(){
-  const modeChosen = buildMode==="new" || buildMode==="supplement";
-  $("#qaMode").style.display = modeChosen ? "none" : "";
+  const chosen = buildMode==="new" || buildMode==="supplement";
+  $("#qaMode").style.display = chosen ? "none" : "";
   $("#suppPanel").style.display = buildMode==="supplement" ? "" : "none";
-  $("#qaSrc").style.display = (buildMode==="new" && !baseSrc) ? "" : "none";
   const showInput = buildMode==="new" && !!baseSrc;
   $("#basePanel").style.display = showInput ? "" : "none";
   if(showInput){
     $("#srcLink").style.display = baseSrc==="link" ? "" : "none";
     $("#srcText").style.display = baseSrc==="text" ? "" : "none";
     $("#rankList").style.display = baseSrc==="list" ? "" : "none";
-    const lbl = baseSrc==="link" ? "벤치마킹 링크로" : baseSrc==="list" ? "기존 베이스에서" : "말로 설명하기";
-    $("#baseChosen").innerHTML = `<span>새로운 레시피 · ${lbl}</span><button class="qa-back" data-back="src">← 다시 선택</button>`;
+    const lbl = baseSrc==="link" ? "참고사이트" : baseSrc==="list" ? "기존 베이스" : "말로 설명하기";
+    $("#baseChosen").innerHTML = `<span>${lbl}</span><button class="qa-back" data-back="start">← 다시 선택</button>`;
   }
   if(buildMode==="supplement") renderSuppList();
   bindWizBacks();
   updateHint();
 }
 function bindWizBacks(){
-  document.querySelectorAll("[data-back]").forEach(b=>b.onclick=()=>{
-    if(b.dataset.back==="mode"){ buildMode=null; baseSrc=null; }
-    else if(b.dataset.back==="src"){ baseSrc=null; }
-    renderBaseWizard();
-  });
+  document.querySelectorAll("[data-back]").forEach(b=>b.onclick=()=>{ buildMode=null; baseSrc=null; renderBaseWizard(); });
 }
-$("#qaMode").querySelectorAll("[data-mode]").forEach(b=>b.onclick=()=>{
-  buildMode=b.dataset.mode; baseSrc=null;
-  renderBaseWizard();
-});
-$("#qaSrc").querySelectorAll("[data-src]").forEach(b=>b.onclick=()=>{
-  baseSrc=b.dataset.src;
+$("#qaMode").querySelectorAll("[data-choice]").forEach(b=>b.onclick=()=>{
+  const c=b.dataset.choice;
+  if(c==="supplement"){ buildMode="supplement"; baseSrc=null; }
+  else { buildMode="new"; baseSrc=c; }   // link | list | text
   renderBaseWizard();
 });
 renderBaseWizard();
