@@ -400,7 +400,7 @@
   .cook-stage{position:relative;width:200px;height:200px;display:grid;place-items:center;transform:scale(.5);margin:-50px 0}
   .cook-ring{position:absolute;inset:0;width:200px;height:200px;transform:rotate(-90deg)}
   .cook-ring .ring-bg{fill:none;stroke:#e7e3da;stroke-width:6}
-  .cook-ring .ring-fg{fill:none;stroke:var(--black);stroke-width:6;stroke-linecap:round;stroke-dasharray:578;stroke-dashoffset:578;animation:ringfill 4.4s cubic-bezier(.45,0,.25,1) forwards}
+  .cook-ring .ring-fg{fill:none;stroke:var(--black);stroke-width:6;stroke-linecap:round;stroke-dasharray:578;stroke-dashoffset:578;animation:ringfill 1.4s cubic-bezier(.45,0,.25,1) forwards}
   @keyframes ringfill{to{stroke-dashoffset:0}}
   .cook-pot{width:108px;height:108px;border-radius:50%;background:var(--black);display:grid;place-items:center;box-shadow:0 12px 32px rgba(0,0,0,.28);animation:potpulse 1.05s ease-in-out infinite}
   .cook-pot .poticon{width:52px;height:52px;fill:none;stroke:#fff;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
@@ -552,6 +552,76 @@
   .adm-pts input{width:84px;padding:8px 10px;border:1px solid var(--line);border-radius:9px;font-family:inherit;font-size:13px;outline:none}
   .adm-empty{padding:36px;text-align:center;color:var(--muted);font-size:14px}
 
+  /* ================= 배치1: 히어로 · 다음단계 · 검색 · 코치마크 ================= */
+  .hero{background:var(--panel);border:1px solid var(--line);border-radius:22px;padding:26px 28px;margin:2px 0 26px;max-height:max(40vh,320px);overflow:hidden;box-shadow:var(--shadow)}
+  .hero h1{font-size:clamp(21px,3vw,29px);font-weight:800;letter-spacing:-.8px;line-height:1.26;color:var(--ink)}
+  .hero .hero-sub{margin-top:9px;color:var(--ink-2);font-size:14.5px;line-height:1.5}
+  .hero .hero-count{margin-top:11px;display:inline-flex;align-items:center;gap:5px;background:var(--field);border:1px solid var(--line);border-radius:999px;padding:6px 13px;font-size:13px;font-weight:600;color:var(--ink-2)}
+  .hero .hero-count b{color:var(--ink)}
+  .hero .hero-ctas{margin-top:15px;display:flex;gap:10px;flex-wrap:wrap}
+  .hero .hero-ctas .btn{font-size:14.5px;padding:12px 20px;border-radius:12px}
+  .hero.compact{padding:13px 20px;max-height:none}
+  .hero.compact h1{font-size:15px;font-weight:700;letter-spacing:-.3px;line-height:1.35;display:inline}
+  .hero.compact h1 br{display:none}
+  .hero.compact .hero-sub,.hero.compact .hero-ctas,.hero.compact .hero-count{display:none}
+  /* 코치마크 스트립 (최초 1회, 탭 한 번에 영구 닫힘) */
+  .coach{display:flex;align-items:center;gap:10px;background:var(--black);color:#fff;border-radius:14px;padding:13px 18px;margin-bottom:22px;cursor:pointer;font-size:13.5px;font-weight:600;flex-wrap:wrap}
+  .coach svg{width:18px;height:18px;fill:none;stroke:#fff;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+  .coach b{font-weight:800}
+  .coach .coach-x{margin-left:auto;background:rgba(255,255,255,.14);border:none;color:#fff;font-family:inherit;font-size:12px;font-weight:700;padding:6px 12px;border-radius:999px;cursor:pointer}
+  /* ⓘ 용어 툴팁 */
+  .tip{display:inline-grid;place-items:center;width:17px;height:17px;border-radius:50%;background:var(--field);border:1px solid var(--line);color:var(--muted);font-size:10.5px;font-weight:700;cursor:help;position:relative;vertical-align:2px;margin-left:4px;font-family:var(--sans);font-style:normal;letter-spacing:0}
+  .tip::after{content:attr(data-tip);position:absolute;left:50%;top:calc(100% + 8px);transform:translateX(-50%);background:var(--black);color:#fff;font-size:12px;font-weight:600;line-height:1.45;padding:8px 12px;border-radius:9px;width:max-content;max-width:230px;white-space:normal;text-align:left;opacity:0;visibility:hidden;transition:.15s;z-index:46;pointer-events:none}
+  .tip:hover::after,.tip:focus::after{opacity:1;visibility:visible}
+  /* 결과 화면 '다음 단계' 카드 */
+  .nextstep{background:var(--field);border:1px solid var(--line);border-radius:16px;padding:20px;margin-bottom:14px}
+  .ns-steps{display:flex;flex-direction:column;gap:8px;margin-bottom:16px}
+  .ns-step{font-size:14px;color:var(--ink-2);line-height:1.5}
+  .ns-step b{color:var(--ink)}
+  .nextstep .ai-grid{margin-bottom:12px}
+  .nextstep .ai{background:var(--panel);padding:13px 6px}
+  .nextstep .ai .ai-logo{height:30px;margin-bottom:6px}
+  .nextstep .ai .ai-logo svg{width:24px;height:24px}
+  .nextstep .ai b{font-size:12.5px}
+  .ns-tip{font-size:12.5px;color:var(--muted);margin-bottom:14px;line-height:1.5}
+  .ns-actions{display:flex;gap:9px;flex-wrap:wrap}
+  .btn.xl{font-size:15px;padding:13px 22px;border-radius:12px}
+  .btn.xl svg{width:18px;height:18px}
+  /* 레시피 전문 아코디언 (pre 원문 무변형) */
+  .pre-fold summary{cursor:pointer;font-weight:700;font-size:13.5px;color:var(--ink-2);padding:12px 16px;background:var(--field);border:1px solid var(--line);border-radius:12px;list-style:none;display:flex;align-items:center;gap:8px;user-select:none}
+  .pre-fold summary::-webkit-details-marker{display:none}
+  .pre-fold summary::before{content:"▸";transition:.15s;font-size:12px}
+  .pre-fold[open] summary::before{transform:rotate(90deg)}
+  .pre-fold pre{margin-top:10px}
+  /* 쿠킹 스킵 버튼 */
+  .cook-skip{position:absolute;right:22px;bottom:22px;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:10px 18px;font-family:inherit;font-size:13px;font-weight:700;color:var(--ink);cursor:pointer;box-shadow:var(--shadow)}
+  .cook-skip:hover{border-color:var(--ink)}
+  /* 헤더 검색 드롭다운 (z-index: 모달 80 · 드로어 60 보다 낮게) */
+  .search{position:relative}
+  .search-dd{position:absolute;top:calc(100% + 8px);right:0;width:300px;max-width:82vw;background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:0 14px 36px rgba(0,0,0,.14);padding:6px;z-index:45;display:flex;flex-direction:column;max-height:340px;overflow:auto}
+  .search-dd[hidden]{display:none}
+  .sdd-item{display:flex;align-items:center;gap:9px;background:none;border:none;font-family:inherit;text-align:left;padding:10px 12px;border-radius:9px;cursor:pointer;font-size:13.5px;color:var(--ink);width:100%}
+  .sdd-item:hover,.sdd-item.on{background:var(--field)}
+  .sdd-item .sdd-badge{flex-shrink:0;font-size:10.5px;font-weight:800;padding:3px 8px;border-radius:6px;background:var(--chip);color:var(--ink-2)}
+  .sdd-item .sdd-badge.b-mine{background:#e8efff;color:#2356b8}
+  .sdd-item .sdd-badge.b-off{background:var(--black);color:#fff}
+  .sdd-item .sdd-t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .sdd-item mark{background:none;color:var(--ink);font-weight:800;text-decoration:underline;text-underline-offset:2px}
+  .sdd-empty{padding:12px;font-size:13px;color:var(--muted);text-align:center}
+  .vcard.flash{animation:cardFlash 1.8s ease}
+  @keyframes cardFlash{0%,55%{box-shadow:0 0 0 3px var(--black)}100%{box-shadow:0 0 0 0 rgba(0,0,0,0)}}
+  /* 모바일 검색: 카테고리바 돋보기 → 풀스크린 오버레이 */
+  .cat-search{display:none;margin-left:auto;background:none;border:none;padding:7px;cursor:pointer;flex-shrink:0}
+  .cat-search svg{width:19px;height:19px;fill:none;stroke:rgba(255,255,255,.85);stroke-width:1.9;stroke-linecap:round}
+  .msearch{position:fixed;inset:0;z-index:58;background:var(--bg);display:flex;flex-direction:column;padding:14px}
+  .msearch[hidden]{display:none}
+  .msearch-bar{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:11px 14px}
+  .msearch-bar svg{width:18px;height:18px;fill:none;stroke:var(--muted);stroke-width:1.8;stroke-linecap:round;flex-shrink:0}
+  .msearch-bar input{flex:1;border:none;background:none;outline:none;font-family:inherit;font-size:16px;color:var(--ink)}
+  .msearch-close{background:none;border:none;font-size:15px;color:var(--muted);cursor:pointer;padding:6px;flex-shrink:0}
+  .msearch-list{margin-top:10px;display:flex;flex-direction:column;gap:2px;overflow-y:auto}
+  .msearch-list[hidden]{display:none}
+
   /* 상단이 좁아져 넘칠 때: 탭을 헤더에서 빼고 별도 카테고리 바로 분리 */
   @media(max-width:920px){
     header.bar nav.tabs{display:none}
@@ -566,6 +636,10 @@
     .catbar{padding:8px 14px}
     .catbar .tab{font-size:13px;padding:7px 11px}
     .search{display:none}
+    .cat-search{display:grid;place-items:center}
+    .hero{padding:22px 20px}
+    .hero h1{font-size:20px}
+    .hero .hero-ctas .btn{flex:1;justify-content:center}
     .avatar{display:none}
     .feat-grid{grid-template-columns:1fr}
     .ai-grid{grid-template-columns:1fr 1fr}
@@ -710,6 +784,7 @@
   </div>
   <div class="cook-text">레시피 끓이는 중…</div>
   <div class="cook-sub">재료를 냄비에 넣고 있어요</div>
+  <button class="cook-skip" id="cookSkip" type="button">바로 열기 →</button>
 </div>
 
 <header class="bar">
@@ -723,7 +798,7 @@
       <span class="tab js-admin-tab" data-page="admin" style="display:none">🔧 관리자</span>
     </nav>
     <div class="bar-sp"></div>
-    <div class="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg><input type="text" placeholder="레시피 검색" /></div>
+    <div class="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg><input type="text" id="searchInput" placeholder="레시피 검색" autocomplete="off" /><div class="search-dd" id="searchDD" hidden></div></div>
     <div class="yt-status" id="ytStatus" style="display:none">
       <svg viewBox="0 0 24 24"><path d="M5 7.5l-1.4 4.5L5 16.5a2 2 0 0 0 1.4 1.4c1.6.4 5.6.6 5.6.6s4 0 5.6-.6A2 2 0 0 0 19 16.5l1.4-4.5L19 7.5a2 2 0 0 0-1.4-1.4C16 5.7 12 5.5 12 5.5s-4 0-5.6.6A2 2 0 0 0 5 7.5z"/><path d="M10.4 9.8l4 2.2-4 2.2z"/></svg>
       <div class="yt-txt"><b class="yt-label">확인 중</b><span class="yt-sub"></span></div>
@@ -747,6 +822,7 @@
   <span class="tab" data-page="recipes">레시피 보관함</span>
   <span class="tab" data-page="pantry">재료 보관함</span>
   <span class="tab js-admin-tab" data-page="admin" style="display:none">🔧 관리자</span>
+  <button class="cat-search" id="catSearchBtn" type="button" aria-label="레시피 검색"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg></button>
 </nav>
 
 <div class="wrap">
@@ -754,9 +830,27 @@
   <!-- ============ PAGE: BUILD ============ -->
   <div class="page active" id="page-build">
 
+  <!-- 첫 화면 히어로 (배치1) — 재방문·로그인 시 compact 축소 -->
+  <section class="hero" id="hero" style="display:none">
+    <h1>웹페이지 어렵다구요?<br>재료만 고르면 레시피로 끓여 드려요</h1>
+    <p class="hero-sub">레시피 = Claude·ChatGPT에 붙여넣는 완성 설계도. 복사 한 번이면 끝.</p>
+    <div class="hero-count" id="heroCount" style="display:none">지금 담아갈 수 있는 레시피 <b id="heroCountN">8</b>개</div>
+    <div class="hero-ctas">
+      <button class="btn primary" id="heroBrowse">완성 레시피 구경하기</button>
+      <button class="btn" id="heroStart">내 레시피 끓이기</button>
+    </div>
+  </section>
+
+  <!-- 최초 1회 코치마크 — 탭 한 번에 영구 닫힘 -->
+  <div class="coach" id="coachStrip" style="display:none" role="button" tabindex="0">
+    <svg viewBox="0 0 24 24"><path d="M4 10h16"/><path d="M5 10v5a3 3 0 0 0 3 3h8a3 3 0 0 0 3-3v-5"/><path d="M9 3.4c-.6 1 .6 1.6 0 2.6M12 3c-.6 1 .6 1.6 0 2.6M15 3.4c-.6 1 .6 1.6 0 2.6"/></svg>
+    <span><b>베이스</b> 고르고 → <b>재료</b> 담고 → <b>끓이면</b> → 레시피 완성!</span>
+    <button class="coach-x" type="button">알겠어요</button>
+  </div>
+
   <section class="sec">
     <div class="sec-head">
-      <span class="sec-title">레시피 <b>시작하기</b></span>
+      <span class="sec-title">레시피 <b>시작하기</b><span class="tip" tabindex="0" data-tip="베이스 = 앱의 전체 틀. 여기서 고른 베이스 위에 재료를 얹어요.">ⓘ</span></span>
       <span class="sec-note">몇 가지만 답하면 베이스가 정해져요</span>
     </div>
     <div class="panel">
@@ -829,7 +923,7 @@
 
   <section class="sec">
     <div class="sec-head">
-      <span class="sec-title">Build Your <b>UI</b></span>
+      <span class="sec-title">UI <b>꾸미기</b><span class="tip" tabindex="0" data-tip="재료 = 레시피에 들어가는 디자인·기능 조각. 고른 만큼 베이스 위에 얹혀요.">ⓘ</span></span>
       <span class="sec-note">고른 단락만 베이스 위에서 교체돼요 (안 고르면 베이스 기본값 유지)</span>
     </div>
     <div class="panel"><div class="uiwiz" id="uiWiz"></div>
@@ -839,7 +933,7 @@
 
   <section class="sec">
     <div class="sec-head">
-      <span class="sec-title">Add <b>Features</b></span>
+      <span class="sec-title">기능 재료 <b>담기</b><span class="tip" tabindex="0" data-tip="재료 = 레시피에 들어가는 디자인·기능 조각. 고른 만큼 베이스 위에 얹혀요.">ⓘ</span></span>
       <span class="sec-note">베이스 기본 기능 위에 더해져요. 서버·API가 필요한 기능은 태그로 표시돼요</span>
     </div>
     <div class="panel">
@@ -852,7 +946,7 @@
 
   <section class="sec">
     <div class="sec-head">
-      <span class="sec-title">My <b>Notes</b></span>
+      <span class="sec-title">내 메모 <b>재료</b></span>
       <span class="sec-note">‘기타’ 재료만 여기서 골라 레시피 맨 아래 ‘내 메모 적용’으로 넣어요 (UI·기능은 위 섹션에서)</span>
     </div>
     <div class="panel"><div id="memoPick"></div></div>
@@ -860,7 +954,7 @@
 
   <section class="sec">
     <div class="sec-head">
-      <span class="sec-title">Harness <b>· 작업 규칙</b></span>
+      <span class="sec-title">AI 직원 <b>수칙</b> (선택)</span>
       <span class="sec-note">레시피 맨 끝에 작업 규칙(CLAUDE.md)을 붙여요 — 기본 규칙은 항상 적용돼요</span>
     </div>
     <div class="panel"><div id="harnessPick"></div></div>
@@ -875,7 +969,7 @@
   <section class="panel" id="recipe">
     <div class="recipe-head">
       <div>
-        <span class="sec-title"><svg style="width:20px;height:20px;vertical-align:-3px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;margin-right:5px" viewBox="0 0 24 24"><path d="M4 10h16"/><path d="M5 10v5a3 3 0 0 0 3 3h8a3 3 0 0 0 3-3v-5"/><path d="M9 4c-.5 .8 .5 1.2 0 2M12 3.5c-.5 .8 .5 1.2 0 2"/></svg>나만의 <b>Bboggl</b> 레시피</span>
+        <span class="sec-title"><svg style="width:20px;height:20px;vertical-align:-3px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;margin-right:5px" viewBox="0 0 24 24"><path d="M4 10h16"/><path d="M5 10v5a3 3 0 0 0 3 3h8a3 3 0 0 0 3-3v-5"/><path d="M9 4c-.5 .8 .5 1.2 0 2M12 3.5c-.5 .8 .5 1.2 0 2"/></svg>나만의 <b>Bboggl</b> 레시피<span class="tip" tabindex="0" data-tip="레시피 = Claude 같은 AI에게 붙여넣는 완성 프롬프트예요.">ⓘ</span></span>
         <div class="meta" id="recipeMeta"></div>
       </div>
       <div class="head-actions">
@@ -883,7 +977,23 @@
         <button class="btn" id="copyBtn"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/></svg>프롬프트 복사</button>
       </div>
     </div>
-    <pre id="recipeText"></pre>
+    <!-- '다음 단계' 3단 카드 + AI 선택 칩 (배치1) -->
+    <div class="nextstep" id="nextStep">
+      <div class="ns-steps">
+        <div class="ns-step"><b>①</b> 아래 버튼으로 <b>레시피 복사</b></div>
+        <div class="ns-step"><b>②</b> <b>claude.ai(추천)</b> 또는 chatgpt.com <b>새 대화</b>에 붙여넣기</div>
+        <div class="ns-step"><b>③</b> “만들어줘” 한마디면 완성</div>
+      </div>
+      <div class="ai-grid" id="nsAiGrid"></div>
+      <div class="ns-tip" id="nsAiTip"></div>
+      <div class="ns-actions">
+        <button class="btn primary xl" id="nsCopyOpen"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/></svg><span>복사하고 Claude 열기</span></button>
+      </div>
+    </div>
+    <details class="pre-fold" id="preFold">
+      <summary>레시피 전문 보기</summary>
+      <pre id="recipeText"></pre>
+    </details>
     <div class="recipe-actions">
       <button class="btn" id="copyBtn2"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/></svg>복사하기</button>
       <button class="btn" id="dlBtn"><svg viewBox="0 0 24 24"><path d="M12 4v11"/><path d="M8 11l4 4 4-4"/><path d="M5 20h14"/></svg>.txt 저장</button>
@@ -1056,6 +1166,16 @@
   </div>
 </div>
 
+<!-- 모바일 풀스크린 검색 오버레이 (배치1) -->
+<div class="msearch" id="msearch" hidden>
+  <div class="msearch-bar">
+    <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+    <input type="text" id="msearchInput" placeholder="레시피 검색" autocomplete="off">
+    <button class="msearch-close" id="msearchClose" type="button" aria-label="닫기">✕</button>
+  </div>
+  <div class="msearch-list" id="msearchList" hidden></div>
+</div>
+
 <div class="toast" id="toast">복사되었어요!</div>
 
 <script>
@@ -1098,6 +1218,8 @@ const UI_ICON = {
   note:'<svg viewBox="0 0 24 24"><path d="M5 4h9l5 5v11H5z"/><path d="M14 4v5h5M8 13h7M8 16h5"/></svg>',
   share:'<svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="2.4"/><circle cx="6" cy="12" r="2.4"/><circle cx="18" cy="19" r="2.4"/><path d="M8.1 10.9l7.8-4.8M8.1 13.1l7.8 4.8"/></svg>',
   more:'<svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>',
+  unshare:'<svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="2.4"/><circle cx="6" cy="12" r="2.4"/><circle cx="18" cy="19" r="2.4"/><path d="M8.1 10.9l7.8-4.8M8.1 13.1l7.8 4.8"/><path d="M4 4l16 16"/></svg>',
+  check:'<svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7"/></svg>',
 };
 function iconBtn(cls,icon,label,attr){ return `<button class="btn ${cls||''}" ${attr||''}>${UI_ICON[icon]}<span>${label}</span></button>`; }
 
@@ -1932,14 +2054,14 @@ const AI_LOGO = {
   etc:'<svg viewBox="0 0 24 24"><path d="M12 3l2.2 6.8H21l-5.5 4 2.1 6.8L12 16.5 6.4 20.6l2.1-6.8L3 9.8h6.8z" fill="#9aa0a6"/></svg>',
 };
 const AIS = [
-  {logo:"claude",name:"Claude",sub:"Anthropic",note:"단계적으로 사고하며 깔끔한 컴포넌트 구조로 코드를 작성해줘."},
-  {logo:"openai",name:"ChatGPT",sub:"OpenAI",note:"실행 가능한 전체 코드와 간단한 설명을 함께 제공해줘."},
-  {logo:"gemini",name:"Gemini",sub:"Google",note:"최신 웹 표준에 맞춰 구현하고 대안도 제시해줘."},
-  {logo:"cursor",name:"Cursor",sub:"AI 코딩",note:"기존 프로젝트에 바로 붙일 수 있도록 파일 단위로 나눠서 작성해줘."},
-  {logo:"v0",name:"v0",sub:"Vercel",note:"React + Tailwind 컴포넌트 형태로 UI를 생성해줘."},
-  {logo:"bolt",name:"Bolt",sub:"풀스택",note:"바로 실행 가능한 풀스택 프로젝트 구조로 만들어줘."},
-  {logo:"lovable",name:"Lovable",sub:"앱 빌더",note:"앱 전체 흐름이 동작하도록 페이지와 라우팅까지 구성해줘."},
-  {logo:"etc",name:"기타 AI",sub:"범용",note:"명확한 구조로 구현해줘."},
+  {logo:"claude",name:"Claude",sub:"Anthropic",note:"긴 레시피도 안정적으로 처리해요. 붙여넣고 ‘만들어줘’ 하면 끝 (추천)"},
+  {logo:"openai",name:"ChatGPT",sub:"OpenAI",note:"무료 계정으로도 시작할 수 있어요. 새 대화에 붙여넣으세요"},
+  {logo:"gemini",name:"Gemini",sub:"Google",note:"구글 계정만 있으면 바로 사용할 수 있어요"},
+  {logo:"cursor",name:"Cursor",sub:"AI 코딩",note:"코드 에디터에서 작업한다면 — 프로젝트 채팅에 붙여넣으세요"},
+  {logo:"v0",name:"v0",sub:"Vercel",note:"화면(UI) 위주 레시피에 잘 맞아요. React 컴포넌트로 만들어져요"},
+  {logo:"bolt",name:"Bolt",sub:"풀스택",note:"브라우저에서 바로 실행·미리보기까지 되는 풀스택 빌더예요"},
+  {logo:"lovable",name:"Lovable",sub:"앱 빌더",note:"페이지·라우팅까지 앱 전체 흐름을 자동으로 구성해줘요"},
+  {logo:"etc",name:"기타 AI",sub:"범용",note:"어떤 AI든 레시피를 붙여넣으면 이해하도록 작성돼 있어요"},
 ];
 const AI_NOTE = Object.fromEntries(AIS.map(a=>[a.name,a.note]));
 
@@ -2641,6 +2763,14 @@ ${additionsBlock}${backendBlock}
 
 let lastRecipe = null;
 let cooking=false;
+let cookTimers=[];
+function clearCookTimers(){ cookTimers.forEach(clearTimeout); cookTimers=[]; }
+function finishCook(){
+  clearCookTimers();
+  buildAndShowRecipe();
+  $("#cookOverlay").classList.remove("show");
+  cooking=false;
+}
 function generate(){
   if(!buildMode){ toggleDrawer(false); alert("먼저 ‘시작하기’에서 새로운 레시피 만들기 / 기존 레시피 보완 중 하나를 선택하세요."); return; }
   if(buildMode==="supplement"){
@@ -2655,9 +2785,23 @@ function generate(){
   toggleDrawer(false);
   if(typeof deductPoints==="function") deductPoints(80);   // 레시피 1개 = 80P (실시간 차감 애니메이션)
   const ov=$("#cookOverlay");
+  // 정직한 연출: 실제 선택값을 단계 텍스트로 바인딩 (배치1)
+  const baseName = buildMode==="supplement" ? ((suppTarget&&suppTarget.name)||"기존 레시피") : ((state.base&&state.base.name)||"베이스");
+  const ingN = state.feats.size + state.customs.length + Object.keys(state.ui).length + state.memos.size;
+  const reduced = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const sub=ov.querySelector(".cook-sub");
+  clearCookTimers();
+  if(sub){
+    sub.textContent=`『${baseName}』 베이스 준비 중`;
+    if(!reduced){
+      cookTimers.push(setTimeout(()=>{ sub.textContent=`재료 ${ingN}개 넣는 중`; },400));
+      cookTimers.push(setTimeout(()=>{ sub.textContent="끓이는 중…"; },800));
+    }
+  }
   ov.classList.remove("show"); void ov.offsetWidth; ov.classList.add("show");  // 애니메이션 재시작
-  setTimeout(()=>{ buildAndShowRecipe(); ov.classList.remove("show"); cooking=false; }, 4400);
+  cookTimers.push(setTimeout(finishCook, reduced?400:1400));   // 4.4초 → 1.4초 (reduced-motion 시 0.4초)
 }
+$("#cookSkip").onclick=()=>{ if(cooking) finishCook(); };   // 우하단 '바로 열기' 스킵 — cooking 플래그 해제 포함
 function buildAndShowRecipe(){
   let text, meta, manual, name;
   if(buildMode==="supplement" && suppTarget){
@@ -3873,6 +4017,155 @@ $("#gateGo").onclick=()=>{ window.open("https://www.youtube.com/channel/"+YOUTUB
 $("#gateRecheck").onclick=()=>{ startYouTubeAuth(); };   // youtube 권한 받아 구독 확인
 $("#gateClose").onclick=()=>$("#gateModal").classList.remove("open");
 $("#gateModal").onclick=(e)=>{ if(e.target===$("#gateModal")) $("#gateModal").classList.remove("open"); };
+
+/* ================= 배치1: 히어로 · 다음단계 카드 · 검색 · 코치마크 ================= */
+
+/* --- 결과 화면 AI 선택 칩 (기존 AIS/AI_LOGO 데이터 부활, 로직 추가 없음) --- */
+const AI_URL = { claude:"https://claude.ai/new", openai:"https://chatgpt.com/", gemini:"https://gemini.google.com/app", cursor:"https://www.cursor.com/", v0:"https://v0.app/", bolt:"https://bolt.new/", lovable:"https://lovable.dev/", etc:"" };
+let nsAi = AIS[0];   // Claude 기본 선택
+function renderNsAi(){
+  const g=$("#nsAiGrid"); if(!g) return;
+  g.innerHTML = AIS.map(a=>`<div class="ai${nsAi.name===a.name?' sel':''}" data-ai="${a.logo}"><div class="ai-logo">${AI_LOGO[a.logo]}</div><b>${a.name}</b><small>${a.sub}</small></div>`).join("");
+  g.querySelectorAll(".ai").forEach(el=>el.onclick=()=>{ nsAi=AIS.find(a=>a.logo===el.dataset.ai)||AIS[0]; renderNsAi(); });
+  $("#nsAiTip").textContent = `${nsAi.name} — ${nsAi.note}`;
+  const sp=$("#nsCopyOpen").querySelector("span");
+  if(sp) sp.textContent = AI_URL[nsAi.logo] ? `복사하고 ${nsAi.name} 열기` : "레시피 복사하기";
+}
+renderNsAi();
+function morphCheck(btn){
+  const sv=btn.querySelector("svg"); if(!sv) return;
+  const orig=sv.outerHTML;
+  sv.outerHTML=UI_ICON.check;
+  setTimeout(()=>{ const s2=btn.querySelector("svg"); if(s2) s2.outerHTML=orig; },1200);
+}
+$("#nsCopyOpen").onclick=()=>{
+  const txt=$("#recipeText").textContent; if(!txt) return;
+  const p=navigator.clipboard.writeText(txt);      // 문서가 포커스를 가진 동기 시점에 복사 시작
+  const url=AI_URL[nsAi.logo];
+  if(url) window.open(url,"_blank","noopener");    // 사용자 클릭 이벤트 내 동기 호출 — 팝업 차단 회피
+  morphCheck($("#nsCopyOpen"));
+  p.then(()=>showToast(`복사됐어요! 이제 ${url?nsAi.name:"AI"}에 붙여넣으세요`))
+   .catch(()=>showToast("복사에 실패했어요 — ‘레시피 전문 보기’에서 직접 복사해주세요"));
+};
+
+/* --- 코치마크 (최초 1회, 탭 한 번에 영구 dismiss) --- */
+(function(){
+  const el=$("#coachStrip"); if(!el) return;
+  if(LS.get("boggl_coach_done", false)) return;
+  el.style.display="";
+  el.onclick=()=>{ LS.set("boggl_coach_done", true); el.style.display="none"; };
+})();
+
+/* --- 첫 화면 히어로 (비로그인 풀 사이즈 / 재방문·로그인 시 compact) --- */
+async function initHero(){
+  const hero=$("#hero"); if(!hero) return;
+  const seen=LS.get("boggl_hero_seen", false);
+  if(getSession() || seen) hero.classList.add("compact");
+  hero.style.display="";
+  LS.set("boggl_hero_seen", true);
+  $("#heroBrowse").onclick=()=>{ switchPage("recipes"); const t=document.querySelector('#recTabs button[data-tab="shared"]'); if(t && !t.classList.contains("on")) t.click(); };
+  $("#heroStart").onclick=()=>{ const s=document.querySelector("#page-build .sec"); if(s) s.scrollIntoView({behavior:"smooth"}); };
+  try{   // 실수치 카운터: 승인 공유 + 공식 8종. 쿼리 실패(RLS)·null이면 카운터 DOM 미노출
+    const { count, error } = await sb.from('boggl_shared').select('*',{count:'exact',head:true}).eq('status','approved');
+    if(!error && typeof count==="number"){
+      $("#heroCountN").textContent = count + SHARED.length;
+      $("#heroCount").style.display="";
+    }
+  }catch(e){ /* 카운터 미노출 유지 */ }
+}
+initHero();
+
+/* --- 헤더 검색창 실동작화 --- */
+let searchSharedRows=null, searchSharedLoading=false, searchSharedFetched=false;
+async function ensureSearchShared(onReady){
+  if(searchSharedFetched || searchSharedLoading) return;
+  searchSharedLoading=true;
+  try{
+    const { data, error } = await sb.from('boggl_shared').select('id,author,data').eq('status','approved').order('created_at',{ascending:false});
+    if(!error) searchSharedRows=(data||[]).filter(r=>((r.data&&r.data.kind)||"recipe")==="recipe");
+    else console.warn(error);
+  }catch(e){ console.warn(e); }
+  searchSharedLoading=false; searchSharedFetched=true;
+  if(onReady) onReady();
+}
+function searchAll(q){
+  q=(q||"").trim().toLowerCase(); if(!q) return [];
+  const hit=s=>(s||"").toLowerCase().includes(q);
+  const out=[];
+  recipes.forEach(r=>{ if(hit(r.name)||hit(r.type)||hit(r.meta)) out.push({kind:"mine",id:r.id,title:r.name,badge:"내 레시피",bc:"b-mine"}); });
+  SHARED.forEach(s=>{ if(hit(s.base.name)||hit(s.note)) out.push({kind:"official",id:s.id,title:s.base.name,badge:"공식",bc:"b-off"}); });
+  (searchSharedRows||[]).forEach(row=>{ const d=row.data||{}; if(hit(d.name)||hit(d.meta)||hit(row.author)) out.push({kind:"comm",id:row.id,title:d.name||"레시피",badge:"공유",bc:""}); });
+  return out.slice(0,6);
+}
+function hiMark(title,q){
+  const i=title.toLowerCase().indexOf(q.toLowerCase());
+  if(i<0) return escapeHtml(title);
+  return escapeHtml(title.slice(0,i))+"<mark>"+escapeHtml(title.slice(i,i+q.length))+"</mark>"+escapeHtml(title.slice(i+q.length));
+}
+function flashCard(getter, tries){
+  tries = tries==null ? 20 : tries;
+  const el=getter();
+  if(el){ el.scrollIntoView({behavior:"smooth",block:"center"}); el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash"); return; }
+  if(tries>0) setTimeout(()=>flashCard(getter,tries-1),150);   // 비동기 렌더 대기(최대 3초)
+}
+function gotoSearchItem(it){
+  switchPage("recipes");
+  const tab = it.kind==="mine" ? "mine" : "shared";
+  const btn=document.querySelector(`#recTabs button[data-tab="${tab}"]`);
+  if(btn && !btn.classList.contains("on")) btn.click();
+  const sel = it.kind==="mine" ? `#recipeMine .vcard[data-id="${it.id}"]`
+            : it.kind==="official" ? `#sharedList .vcard[data-id="${it.id}"]`
+            : `#sharedList .vcard[data-cid="${it.id}"]`;
+  flashCard(()=>document.querySelector(sel));
+}
+function wireSearch(input, listEl, beforeNavigate){
+  let items=[], act=-1, tId=null;
+  const close=()=>{ listEl.hidden=true; act=-1; };
+  const render=(q)=>{
+    if(!q.trim()){ close(); listEl.innerHTML=""; items=[]; return; }
+    items=searchAll(q);
+    let html="";
+    if(searchSharedLoading) html+=`<div class="sdd-empty">공유 레시피 불러오는 중…</div>`;
+    if(items.length){
+      html+=items.map((it,i)=>`<button type="button" class="sdd-item${i===act?' on':''}" data-i="${i}"><span class="sdd-badge ${it.bc}">${it.badge}</span><span class="sdd-t">${hiMark(it.title,q.trim())}</span></button>`).join("");
+    } else if(!searchSharedLoading){
+      html+=`<button type="button" class="sdd-item" data-cta="1"><span class="sdd-badge b-off">GO</span><span class="sdd-t">‘${escapeHtml(q.trim())}’ 레시피 직접 끓이러 가기 →</span></button>`;
+    }
+    listEl.innerHTML=html; listEl.hidden=false;
+    listEl.querySelectorAll(".sdd-item").forEach(b=>{
+      b.onclick=()=>{
+        close(); if(beforeNavigate) beforeNavigate();
+        if(b.dataset.cta){ switchPage("build"); const s=document.querySelector("#page-build .sec"); if(s) s.scrollIntoView({behavior:"smooth"}); return; }
+        const it=items[+b.dataset.i]; if(it) gotoSearchItem(it);
+      };
+    });
+  };
+  input.addEventListener("input",()=>{ clearTimeout(tId); tId=setTimeout(()=>{ act=-1; render(input.value); },150); });   // 디바운스 150ms
+  input.addEventListener("focus",()=>{ ensureSearchShared(()=>{ if(document.activeElement===input && input.value.trim()) render(input.value); }); if(input.value.trim()) render(input.value); });
+  input.addEventListener("keydown",e=>{
+    if(e.key==="Escape"){ close(); input.blur(); return; }
+    const btns=[...listEl.querySelectorAll(".sdd-item")];
+    if(!btns.length) return;
+    if(e.key==="ArrowDown"||e.key==="ArrowUp"){
+      e.preventDefault();
+      act = e.key==="ArrowDown" ? (act+1)%btns.length : (act-1+btns.length)%btns.length;
+      btns.forEach((b,i)=>b.classList.toggle("on",i===act));
+      btns[act].scrollIntoView({block:"nearest"});
+    } else if(e.key==="Enter"){
+      e.preventDefault();
+      btns[act>=0?act:0].click();
+    }
+  });
+  return { close };
+}
+const headerSearch=wireSearch($("#searchInput"), $("#searchDD"));
+document.addEventListener("click",e=>{ if(!e.target.closest(".search")) headerSearch.close(); });   // 외부 클릭 닫기
+/* 모바일(≤760px): 카테고리바 돋보기 → 풀스크린 오버레이 */
+const msearchEl=$("#msearch");
+wireSearch($("#msearchInput"), $("#msearchList"), ()=>{ msearchEl.hidden=true; });
+$("#catSearchBtn").onclick=()=>{ msearchEl.hidden=false; setTimeout(()=>$("#msearchInput").focus(),40); };
+$("#msearchClose").onclick=()=>{ msearchEl.hidden=true; };
+$("#msearchInput").addEventListener("keydown",e=>{ if(e.key==="Escape") msearchEl.hidden=true; });
 
 /* ================= INIT ================= */
 renderMemoPickers();
