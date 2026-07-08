@@ -3462,7 +3462,7 @@ const YT_SCOPE = "https://www.googleapis.com/auth/youtube.readonly";
 let sbUserId = null;
 
 /* ▼▼▼ 관리자(혼잡스 채널 소유자) 구글 이메일 — 여기에 본인 관리자 이메일 입력 ▼▼▼ */
-const ADMIN_EMAIL = "drazoom@naver.com";
+const ADMIN_EMAIL = "demo-filming@disabled.invalid"; // 2026-07-08 데모 촬영용 임시 — 촬영 후 원복
 /* ▲▲▲ 이 계정으로 로그인하면 관리자 페이지가 보입니다 (Supabase RLS도 같은 이메일로 설정) ▲▲▲ */
 function isAdmin(){ const s=getSession(); return !!(s && s.user && s.user.email && ADMIN_EMAIL && s.user.email.toLowerCase()===ADMIN_EMAIL.toLowerCase()); }
 function updateAdminTab(){ document.querySelectorAll(".js-admin-tab").forEach(t=>{ t.style.display = isAdmin() ? "" : "none"; }); }
