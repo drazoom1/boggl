@@ -3456,7 +3456,7 @@ const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 /* 구독 확인할 대상 유튜브 채널 */
 const YOUTUBE_CHANNEL_ID = "UCidyOPC0asenYpq_Mgbfa0w";   // 혼잡스 채널
 const MEMBERSHIP_ENABLED = false;   // 멤버십 게이팅(소유자 서버 연동 시)·기본은 구독 게이팅
-const SUB_GATE_ENABLED = false;     // 2026-07-08 구글 OAuth 심사 중 임시 해제 — 심사 통과 후 true로 되돌릴 것
+const SUB_GATE_ENABLED = true;      // 2026-07-08 데모 영상 촬영용 임시 ON — 촬영 후 false로
 const HAS_YT_CHANNEL = /^UC[\w-]{20,}$/.test(YOUTUBE_CHANNEL_ID);
 const YT_SCOPE = "https://www.googleapis.com/auth/youtube.readonly";
 let sbUserId = null;
