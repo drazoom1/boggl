@@ -686,7 +686,7 @@
   <div class="modal" style="max-width:380px;text-align:center">
     <div class="gate-ic" style="background:#eef0ff"><svg viewBox="0 0 24 24" style="fill:none;stroke:#4a5cf2;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></div>
     <div class="modal-title" style="margin-bottom:8px">로그인이 필요해요</div>
-    <p style="color:var(--muted);font-size:14px;line-height:1.6;margin-bottom:20px">해당 서비스는 <b style="color:var(--ink)">혼잡스 채널 구독자</b>들을 위해 만들어졌습니다.<br>구독 인증을 통해서 서비스를 무료로 이용해보세요.</p>
+    <p style="color:var(--muted);font-size:14px;line-height:1.6;margin-bottom:20px">가입하면 <b style="color:var(--ink)">10,000P</b>를 바로 드려요.<br>로그인하고 무료로 이용해보세요.</p>
     <div style="display:flex;flex-direction:column;gap:9px">
       <button class="btn primary" id="loginPromptGo" style="justify-content:center">로그인하기</button>
       <button class="btn" id="loginPromptClose" style="justify-content:center;border:none">닫기</button>
@@ -1188,7 +1188,7 @@ const LS = {
 };
 let memos       = LS.get("nembi_memos", []);
 let recipes     = LS.get("nembi_recipes", []);
-let points      = LS.get("nembi_points", 1000);   // 가입 기본 1000
+let points      = LS.get("nembi_points", 10000);   // 가입 기본 10000 (무조건 지급)
 let subBonus    = LS.get("nembi_subbonus", false); // 구독 보너스(3000) 지급 여부
 let nickname    = LS.get("nembi_nick", "");        // 사용자 닉네임
 let subscribed  = LS.get("nembi_subscribed", false); // 구독 인증 상태(계정 저장 → 재인증 불필요)
@@ -3815,6 +3815,8 @@ function premiumLocked(){
 }
 function renderYtStatus(){
   const el=$("#ytStatus"); if(!el) return;
+  // 구독인증 기능 비활성화 — 헤더 구독칩 항상 숨김
+  el.style.display="none"; return;
   // 채널 미설정이거나 비로그인 → 칩 숨김
   if(!HAS_YT_CHANNEL || !getSession()){ el.style.display="none"; return; }
   el.style.display="flex"; el.style.cursor="pointer";
@@ -4007,6 +4009,7 @@ $("#authClose").onclick=()=>authGate.classList.remove("show");
 
 /* ===== 프리미엄(특정 기능) 게이트 모달 ===== */
 function openGate(){
+  return;   // 구독인증 기능 비활성화 — 게이트 모달 표시 안 함
   $("#gateMsg").textContent = MEMBERSHIP_ENABLED
     ? "혼잡스 채널 유료 멤버십 가입자만 사용할 수 있어요."
     : "혼잡스 채널을 구독하시면 10,000포인트가 자동 지급돼요.";
