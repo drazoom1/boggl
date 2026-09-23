@@ -193,7 +193,7 @@ label.f{display:block;font-size:12px;color:var(--mute);margin:12px 0 5px;font-we
   </section>
 
   <section class="page" id="p-admin">
-    <div class="h2">관리<small>김진수 · 관리자</small></div>
+    <div class="h2">관리<small>관리자 전용</small></div>
     <div class="kpi"><div><b id="kDone">0</b><span>완료 순찰</span></div><div><b id="kAbs">0</b><span>결석</span></div><div><b id="kEv">0</b><span>특이사항</span></div></div>
     <div class="card">
       <div class="sec" style="margin:0 0 8px">보고서</div>
@@ -230,7 +230,7 @@ label.f{display:block;font-size:12px;color:var(--mute);margin:12px 0 5px;font-we
   <button data-p="admin" id="navAdmin" hidden><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.32 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>관리</button>
 </nav>
 
-<div class="overlay" id="meOv"><div class="sheet"><h3>내 이름</h3><div class="pick" id="mePick"></div><p class="hint" style="margin-top:10px">한 번 고르면 이 폰에 기억됩니다. 김진수는 관리자 PIN이 필요합니다.</p></div></div>
+<div class="overlay" id="meOv"><div class="sheet"><h3>내 이름</h3><div class="pick" id="mePick"></div><p class="hint" style="margin-top:10px">한 번 고르면 이 폰에 기억됩니다. 관리자(김진수·김태영·김승원·김홍구)는 PIN이 필요합니다.</p></div></div>
 <div class="overlay" id="pinOv"><div class="sheet"><h3>관리자 PIN</h3><input type="password" id="pinIn" inputmode="numeric" maxlength="6" placeholder="PIN 입력" autocomplete="off"><div class="brow"><button class="btn ghost" id="pinCancel">취소</button><button class="btn" id="pinOk">확인</button></div></div></div>
 <div class="overlay" id="subOv"><div class="sheet"><h3 id="subTitle">대체 투입</h3><div class="pick" id="subPick"></div><button class="btn ghost sm" style="margin-top:10px" id="subClose">닫기</button></div></div>
 <div class="overlay" id="patOv"><div class="sheet">
@@ -263,7 +263,7 @@ label.f{display:block;font-size:12px;color:var(--mute);margin:12px 0 5px;font-we
 const SB_URL = 'https://wwpvntmueafieessgnbu.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind3cHZudG11ZWFmaWVlc3NnbmJ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ3MDczMjUsImV4cCI6MjA3MDI4MzMyNX0.KG4yuo02jACcVOlG7av3bMFmRcfHK6lzu0x78RMhz0c';
 const sb = window.supabase ? supabase.createClient(SB_URL, SB_KEY, {realtime: {params: {eventsPerSecond: 5}}}) : null;
-const ADMIN_NAME = '김진수';
+const ADMINS = ['김진수', '김태영', '김승원', '김홍구'];   // 관리자(PIN 필요)
 const AUTO_DONE_MIN = 25;   // 순찰 시작 후 이 시간이 지나면 자동 완료
 const WIN_BEFORE = 10, WIN_AFTER = 15;   // 순찰 시작 가능 시간창: 회차 시작 10분 전 ~ 종료 15분 후
 const DAYS = [['fri','금'],['sat','토'],['sun','일']];
@@ -272,7 +272,7 @@ const DEF_CHK = '2인 1조 · 구역 끝까지 한 바퀴\n차량 파손·문 �
 
 const LS = { get(k, d) { try { const v = localStorage.getItem('pt.' + k); return v ? JSON.parse(v) : d; } catch { return d; } }, set(k, v) { try { localStorage.setItem('pt.' + k, JSON.stringify(v)); } catch {} } };
 const SEED = {
-  members: [[1,'신건호',1,''],[2,'승영민',1,''],[3,'김태영',2,'순찰 조직 팀장'],[4,'김진수',10,'요원 · 관리자'],[5,'김현빈',2,''],[6,'신현우',3,'요원'],[7,'박정찬',3,''],[8,'허경덕',4,'지하주차장 팀장'],[9,'오상은',4,''],[10,'김현준',5,''],[11,'정승수',5,''],[12,'이채원',6,''],[13,'정상록',6,''],[14,'장재윤',7,''],[15,'김현진',7,''],[16,'황의성',8,''],[17,'김인욱',8,''],[18,'이경민',9,''],[19,'김인석',9,''],[20,'윤호식',10,'']].map(([id,name,team,role])=>({id,name,team,role})),
+  members: [[1,'신건호',1,''],[2,'승영민',1,''],[3,'김태영',2,'순찰 조직 팀장'],[4,'김진수',10,'요원 · 관리자'],[5,'김현빈',2,''],[6,'신현우',3,'요원'],[7,'박정찬',3,''],[8,'허경덕',4,'지하주차장 팀장'],[9,'오상은',4,''],[10,'김현준',5,''],[11,'정승수',5,''],[12,'이채원',6,''],[13,'정상록',6,''],[14,'장재윤',7,''],[15,'김현진',7,''],[16,'황의성',8,''],[17,'김인욱',8,''],[18,'이경민',9,''],[19,'김인석',9,''],[20,'윤호식',10,''],[21,'김승원',0,'감독자'],[22,'김홍구',0,'보조자']].map(([id,name,team,role])=>({id,name,team,role})),
   slots: [['fri-1','fri',1,'오전 ①','개회 노래·기도 직후','09:30','09:50',5,1],['fri-2','fri',2,'오전 ②','노래 및 광고','11:05','11:25',6,2],['fri-3','fri',3,'오후 ①','오후 회기 시작 노래','13:45','14:05',7,3],['fri-4','fri',4,'오후 ②','노래 및 광고','14:50','15:10',8,4],['sat-1','sat',1,'오전 ①','개회 노래·기도 직후','09:30','09:50',9,4],['sat-2','sat',2,'오전 ②','노래 및 광고','10:25','10:45',10,1],['sat-3','sat',3,'오후 ①','오후 회기 시작 노래','13:45','14:05',5,2],['sat-4','sat',4,'오후 ②','노래 및 광고','15:20','15:40',6,3],['sun-1','sun',1,'오전 ①','개회 노래·기도 직후','09:30','09:50',7,3],['sun-2','sun',2,'오전 ②','노래 및 광고','11:00','11:20',8,4],['sun-3','sun',3,'오후 ①','오후 회기 시작 노래','13:45','14:05',9,1],['sun-4','sun',4,'오후 ②','노래 및 광고','14:35','14:55',10,2]].map(([id,day,no,label,cue,start_t,end_t,team_blue,team_red])=>({id,day,no,label,cue,start_t,end_t,team_blue,team_red})),
 };
 const S = {
@@ -290,7 +290,7 @@ const toast = (m) => { const t = $('#toast'); t.textContent = m; t.classList.add
 const memName = (id) => (S.members.find((m) => m.id === id) || {}).name || '?';
 const teamMembers = (t) => S.members.filter((m) => m.team === t);
 const isPresent = (id, day) => { const a = S.att[id + '|' + day]; return a ? a.present : true; };
-const isAdmin = () => !!(S.me && S.me.name === ADMIN_NAME && S.admin);
+const isAdmin = () => !!(S.me && ADMINS.includes(S.me.name) && S.admin);
 const checklist = () => (S.config.checklist || DEF_CHK).split(/\\n|\n/).map((s) => s.trim()).filter(Boolean);
 const phone = () => S.config.emergency_phone || '010-3316-3661';
 const localYmd = (d) => new Intl.DateTimeFormat('sv-SE', {timeZone: 'Asia/Seoul'}).format(d);   // YYYY-MM-DD (KST)
@@ -410,7 +410,7 @@ function statusRow(key, patch) {
 function startPatrol(key) { const prev = S.status[key]; if (!prev || prev.status === 'ready') statusRow(key, {status: 'going', started_at: nowIso(), done_at: null, by_name: S.me ? S.me.name : '', checks: checklist().map(() => false)}); openPatrol(key); toast('순찰 시작'); }
 function setAtt(member_id, day, present) { const row = {member_id, day, present, updated_at: nowIso()}; S.att[member_id + '|' + day] = row; persist(); render(); enqueue('att', row); toast(`${memName(member_id)} ${present ? '출석' : '결석'}`); }
 function addSub(slot_id, team, member_out, member_in) { const row = {slot_id, team, member_out, member_in, by_name: S.me ? S.me.name : '', created_at: nowIso(), _cid: cid()}; S.subs.push(row); persist(); render(); enqueue('sub', row); toast(`${memName(member_in)} → ${team}조 투입`); }
-function addEvent(area, text, team) { const row = {day: S.day, team: team ?? (S.me ? S.me.team : null), member_name: S.me ? S.me.name : '', area, text, created_at: nowIso(), _cid: cid()}; S.events.push(row); persist(); render(); enqueue('event', row); toast('기록됨' + (navigator.onLine ? '' : ' (오프라인 · 나중에 전송)')); }
+function addEvent(area, text, team) { const row = {day: S.day, team: team ?? (S.me && S.me.team ? S.me.team : null), member_name: S.me ? S.me.name : '', area, text, created_at: nowIso(), _cid: cid()}; S.events.push(row); persist(); render(); enqueue('event', row); toast('기록됨' + (navigator.onLine ? '' : ' (오프라인 · 나중에 전송)')); }
 function setConfig(kv) { Object.assign(S.config, kv); persist(); render(); for (const [key, value] of Object.entries(kv)) enqueue('config', {key, value}); }
 
 // ── 자체 확인창 ──────────────────────────────────────────
@@ -560,17 +560,17 @@ document.body.addEventListener('click', (e) => {
 });
 const curArea = () => (document.querySelector('#areas button.on') || {}).dataset?.a || '';
 $('#evSend').onclick = () => { const t = $('#evText').value.trim(); if (!t) return toast('내용을 적어주세요'); addEvent(curArea(), t); $('#evText').value = ''; };
-$('#saveCfg').onclick = () => { setConfig({date_fri: $('#dFri').value, date_sat: $('#dSat').value, date_sun: $('#dSun').value, emergency_phone: $('#cfgPhone').value.trim(), checklist: $('#cfgChk').value.trim(), admin_pin: $('#cfgPin').value.trim() || S.config.admin_pin || '1004'}); toast('설정 저장 · 전원에게 공유됨'); };
+$('#saveCfg').onclick = () => { setConfig({date_fri: $('#dFri').value, date_sat: $('#dSat').value, date_sun: $('#dSun').value, emergency_phone: $('#cfgPhone').value.trim(), checklist: $('#cfgChk').value.trim(), admin_pin: $('#cfgPin').value.trim() || S.config.admin_pin || '1234'}); toast('설정 저장 · 전원에게 공유됨'); };
 $('#syncNow').onclick = () => { flush().then(pull).then(pullMap).then(() => toast('동기화 완료')); };
 $('#meBtn').onclick = () => openMe();
 function openMe() {
   const p = $('#mePick'); p.innerHTML = '';
-  for (const m of S.members) { const b = el(`<button class="${S.me && S.me.id === m.id ? 'on' : ''}">${m.name}<small>${m.team}조${m.name === ADMIN_NAME ? ' · 관리자' : ''}</small></button>`);
-    b.onclick = () => { $('#meOv').classList.remove('on'); if (m.name === ADMIN_NAME) return askPin(m); S.me = m; S.admin = false; persist(); render(); toast(`${m.name} (${m.team}조)`); }; p.appendChild(b); }
+  for (const m of S.members) { const b = el(`<button class="${S.me && S.me.id === m.id ? 'on' : ''}">${m.name}<small>${m.team ? m.team + '조' : m.role}${ADMINS.includes(m.name) ? ' · 관리자' : ''}</small></button>`);
+    b.onclick = () => { $('#meOv').classList.remove('on'); if (ADMINS.includes(m.name)) return askPin(m); S.me = m; S.admin = false; persist(); render(); toast(`${m.name} (${m.team}조)`); }; p.appendChild(b); }
   $('#meOv').classList.add('on');
 }
 function askPin(m) { $('#pinIn').value = ''; $('#pinOv').classList.add('on'); setTimeout(() => $('#pinIn').focus(), 100);
-  $('#pinOk').onclick = () => { if ($('#pinIn').value === (S.config.admin_pin || '1004')) { S.me = m; S.admin = true; persist(); $('#pinOv').classList.remove('on'); render(); toast('관리자로 로그인'); } else toast('PIN이 틀렸습니다'); };
+  $('#pinOk').onclick = () => { if ($('#pinIn').value === (S.config.admin_pin || '1234')) { S.me = m; S.admin = true; persist(); $('#pinOv').classList.remove('on'); render(); toast('관리자로 로그인'); } else toast('PIN이 틀렸습니다'); };
   $('#pinCancel').onclick = () => $('#pinOv').classList.remove('on'); }
 function openSub(slot_id, team, out) {
   $('#subTitle').textContent = `${team}조 대체 투입 — ${memName(out)} 대신`; const p = $('#subPick'); p.innerHTML = '';
